@@ -27,13 +27,32 @@ const MIME = {
 };
 
 function loadConfig() {
-  const raw = readFileSync(CONFIG_PATH, 'utf8');
-  const cfg = JSON.parse(raw);
-  state.vaults = cfg.vaults || [];
+  let raw;
+  try {
+    raw = readFileSync(CONFIG_PATH, 'utf8');
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      console.log(`[md-live-viewer] config.json not found at ${CONFIG_PATH}`);
+      return false;
+    }
+    throw err;
+  }
+  let cfg;
+  try {
+    cfg = JSON.parse(raw);
+  } catch (err) {
+    console.warn(`[md-live-viewer] config.json is not valid JSON: ${err.message}`);
+    return false;
+  }
+  state.vaults = Array.isArray(cfg.vaults) ? cfg.vaults : [];
+  if (state.vaults.length === 0) {
+    console.warn('[md-live-viewer] config.json has no vaults');
+    return false;
+  }
   const current = state.vaults.find((v) => v.slug === cfg.current) || state.vaults[0];
-  if (!current) throw new Error('config.json has no vaults');
   state.currentSlug = current.slug;
   state.currentVault = current.path;
+  return true;
 }
 
 function escapeHtml(s) {
@@ -58,6 +77,26 @@ function renderIndexBody() {
   const header = `<h1>${escapeHtml(state.currentSlug)}</h1>`;
   const help = `<p class="subtle">Open a page from the sidebar or pick one below. Live reload is on.</p>`;
   return `${header}\n${help}\n<ul class="root-list">\n${items}\n</ul>`;
+}
+
+function renderWelcomeBody() {
+  return `<h1>Welcome</h1>
+<p>表示する Markdown ディレクトリがまだ設定されていません。<code>config.json</code> を作成すると、ここにツリーとページが並びます。</p>
+
+<h2>セットアップ</h2>
+<pre><code>cp config.example.json config.json
+# config.json を開き、対象ディレクトリの絶対パスに書き換える
+npm run dev   # サーバを再起動</code></pre>
+
+<h2><code>config.json</code> の最小例</h2>
+<pre><code>{
+  "current": "notes",
+  "vaults": [
+    { "slug": "notes", "label": "Notes", "path": "/絶対/パス/markdown/dir" }
+  ]
+}</code></pre>
+
+<p class="subtle">複数のディレクトリを <code>vaults</code> に並べると、footer の Source select で切り替えられるようになります。</p>`;
 }
 
 const app = new Hono();
@@ -158,6 +197,14 @@ app.get('/api/live', (c) => {
 });
 
 app.get('/', (c) => {
+  if (!state.currentVault) {
+    const html = wrap({
+      title: 'Welcome',
+      content: renderWelcomeBody(),
+      source: '',
+    });
+    return c.html(html);
+  }
   const html = wrap({
     title: state.currentSlug || 'Index',
     content: renderIndexBody(),
@@ -178,11 +225,21 @@ app.get('*', (c) => {
 app.notFound((c) => c.text('Not Found', 404));
 
 (async () => {
-  loadConfig();
-  console.log(`[md-live-viewer] loading vault: ${state.currentVault}`);
-  const t0 = Date.now();
-  await indexer.load(state.currentVault);
-  console.log(`[md-live-viewer] indexed ${state.index.size} pages in ${Date.now() - t0}ms`);
+  const hasConfig = loadConfig();
+  if (hasConfig) {
+    console.log(`[md-live-viewer] loading source: ${state.currentVault}`);
+    const t0 = Date.now();
+    try {
+      await indexer.load(state.currentVault);
+      console.log(`[md-live-viewer] indexed ${state.index.size} pages in ${Date.now() - t0}ms`);
+    } catch (err) {
+      console.warn(`[md-live-viewer] failed to index source: ${err?.message ?? err}`);
+      state.currentVault = null;
+      state.currentSlug = null;
+    }
+  } else {
+    console.log('[md-live-viewer] running in welcome mode (no usable config.json)');
+  }
   serve({ fetch: app.fetch, port: PORT }, (info) => {
     console.log(`[md-live-viewer] Server at http://localhost:${info.port}/`);
   });
