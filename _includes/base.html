@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="/assets/css/_base.css" />
     <script>
       (function () {
-        var t = localStorage.getItem('colors-wiki-theme') || 'petal-rose';
+        var t = localStorage.getItem('md-live-viewer-theme') || 'petal-rose';
         var el = document.getElementById('theme-css');
         if (el) el.href = '/assets/css/' + t + '.css';
       })();
@@ -58,7 +58,7 @@
       </label>
       <script>
         (function () {
-          var KEY = 'colors-wiki-theme';
+          var KEY = 'md-live-viewer-theme';
           var sel = document.getElementById('theme-select');
           var link = document.getElementById('theme-css');
           if (!sel || !link) return;

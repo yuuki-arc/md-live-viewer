@@ -2,7 +2,7 @@
 
 任意ディレクトリの Markdown 群を、画面から切替可能な形でライブ配信する軽量ローカルビューア。
 
-- **動的 vault 切替**: footer の Vault select からワンクリックで別ディレクトリを表示
+- **動的ソース切替**: footer の Source select からワンクリックで別ディレクトリを表示
 - **ライブリロード**: ファイル保存 → ブラウザ自動更新（SSE）
 - **Obsidian 記法対応**: `[[wikilinks]]`、`> [!note]` callout
 - **lazy サイドバー**: 10k ページ規模を想定したディレクトリツリーの遅延展開
@@ -25,21 +25,21 @@ npm run dev
 
 `config.json` はマシン固有の絶対パスを含むため `.gitignore` 対象。リポジトリには `config.example.json` をテンプレートとして同梱している。
 
-## vault の追加
+## ソースの追加
 
 `config.json` を編集して `vaults` 配列にエントリを追加後、サーバを再起動:
 
 ```json
 {
-  "current": "colors-wiki",
+  "current": "notes",
   "vaults": [
-    { "slug": "colors-wiki", "label": "colors-wiki", "path": "/Users/..." },
-    { "slug": "work-notes",   "label": "Work notes",   "path": "/Users/..." }
+    { "slug": "notes",      "label": "Notes",      "path": "/絶対/パス/markdown/dir" },
+    { "slug": "work-notes", "label": "Work notes", "path": "/絶対/パス/work" }
   ]
 }
 ```
 
-起動後、footer の Vault select に追加分が現れる。切替時はインメモリ状態のみ更新され、再スキャン後に自動リロード。
+起動後、footer の Source select に追加分が現れる。切替時はインメモリ状態のみ更新され、再スキャン後に自動リロード。
 
 ## アーキテクチャ
 
@@ -83,10 +83,11 @@ md-live-viewer/
 
 ## 除外ルール
 
-以下のディレクトリ / ファイルはインデックス対象外（`lib/indexer.js` の `EXCLUDED_DIRS` / `EXCLUDED_ROOT_FILES` で制御）:
+以下のディレクトリはインデックス対象外（`lib/indexer.js` の `EXCLUDED_DIRS` で制御）:
 
-- Dirs: `.raw`, `_templates`, `.obsidian`, `Excalidraw`, `.git`, `.claude`, `node_modules`
-- Root files: `CLAUDE.md`, `README.md`, `karpathy-llm-wiki.md`, `2026-04-22.md`
+- `.raw`, `_templates`, `.obsidian`, `Excalidraw`, `.git`, `.claude`, `node_modules`
+
+特定のファイルを除外したい場合は `lib/indexer.js` の `EXCLUDED_ROOT_FILES`（root 直下、basename 一致）にエントリを追記する。
 
 ## HTTP API
 
@@ -121,7 +122,7 @@ md-live-viewer/
 - `mist-blue.css`
 - `lilac-plum.css`
 
-footer の Theme select で切替、localStorage キー `colors-wiki-theme` に保存。
+footer の Theme select で切替、localStorage キー `md-live-viewer-theme` に保存。
 
 ## ポート
 
