@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="source-slug" content="{{source}}" />
+    <title>{{title}} — md-live-viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&display=swap"
+    />
+    <link rel="stylesheet" id="theme-css" href="/assets/css/petal-rose.css" />
+    <link rel="stylesheet" href="/assets/css/_base.css" />
+    <script>
+      (function () {
+        var t = localStorage.getItem('colors-wiki-theme') || 'petal-rose';
+        var el = document.getElementById('theme-css');
+        if (el) el.href = '/assets/css/' + t + '.css';
+      })();
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <p class="site-header__wordmark"><a href="/" class="wordmark-link">md-live-viewer</a></p>
+      <p class="site-header__tagline">ローカルの Markdown を、ブラウザで。</p>
+    </header>
+    <div class="wave-divider" aria-hidden="true"></div>
+
+    <div class="page">
+      <aside class="sidebar">
+        <h3>CONTENTS</h3>
+        <input type="search" id="sidebar-search" placeholder="search" autocomplete="off" />
+        <ul class="side-tree" id="sidebar-tree" data-path=""></ul>
+      </aside>
+
+      <main class="prose">
+        {{content}}
+      </main>
+    </div>
+
+    <footer class="site-footer">
+      <span class="credit">made with <span class="heart">✏︎</span> · md-live-viewer</span>
+      <label class="vault-picker">
+        <span>Source</span>
+        <select id="vault-select"></select>
+      </label>
+      <label class="theme-picker">
+        <span>Theme</span>
+        <select id="theme-select">
+          <option value="petal-rose">Petal × Rose</option>
+          <option value="cream-terracotta">Cream × Terracotta</option>
+          <option value="mint-sage">Mint × Sage</option>
+          <option value="mist-blue">Mist × Blue</option>
+          <option value="lilac-plum">Lilac × Plum</option>
+        </select>
+      </label>
+      <script>
+        (function () {
+          var KEY = 'colors-wiki-theme';
+          var sel = document.getElementById('theme-select');
+          var link = document.getElementById('theme-css');
+          if (!sel || !link) return;
+          sel.value = localStorage.getItem(KEY) || 'petal-rose';
+          sel.addEventListener('change', function (e) {
+            var v = e.target.value;
+            localStorage.setItem(KEY, v);
+            link.href = '/assets/css/' + v + '.css';
+          });
+        })();
+      </script>
+    </footer>
+
+    <script src="/assets/js/sidebar.js"></script>
+    <script src="/assets/js/live.js"></script>
+    <script src="/assets/js/vault.js"></script>
+  </body>
+</html>
