@@ -1,0 +1,42 @@
+/* ==========================================================
+   colors-wiki · Theme 01 — Cream × Terracotta
+   ========================================================== */
+:root {
+  --bg:          #FBF6EE;
+  --bg-alt:      #F4ECDE;
+  --surface:     #FFFCF5;
+  --surface-2:   #FAF2E4;
+  --ink:         #3E342B;
+  --ink-soft:    #5A4D42;
+  --muted:       #948376;
+  --muted-2:     #B8A998;
+  --line:        #E8DFD1;
+
+  --accent:         #D98668;
+  --accent-soft:    #F6D6CE;
+  --accent-softer:  #FBEAE4;
+  --accent-pressed: #C2704F;
+
+  --font-jp-body:    'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'ヒラギノ丸ゴ ProN', sans-serif;
+  --font-jp-display: 'Zen Kaku Gothic New', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN', sans-serif;
+  --font-display-en: 'Fraunces', 'Playfair Display', Georgia, serif;
+  --font-mono:       'SF Mono', Menlo, Consolas, monospace;
+
+  --fz-xs:12px; --fz-sm:14px; --fz-md:16px; --fz-lg:18px;
+  --fz-xl:22px; --fz-2xl:28px; --fz-3xl:36px; --fz-4xl:44px;
+
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px;
+  --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px; --sp-16:64px;
+
+  --r-sm:6px; --r-md:12px; --r-lg:20px; --r-xl:28px; --r-pill:999px;
+
+  --shadow-sm: 0 1px 2px rgba(62, 52, 43, 0.06);
+  --shadow-md: 0 4px 16px rgba(62, 52, 43, 0.08);
+  --shadow-lg: 0 12px 40px rgba(62, 52, 43, 0.10);
+
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur: 220ms;
+
+  --wave-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 24' preserveAspectRatio='none'><path d='M0 12 Q 20 0 40 12 T 80 12' stroke='%23F6D6CE' stroke-width='2.5' fill='none'/></svg>");
+}
+@import url("./_base.css");

@@ -1,0 +1,42 @@
+/* ==========================================================
+   colors-wiki · Theme 02 — Petal × Rose
+   ========================================================== */
+:root {
+  --bg:          #FDF3F2;
+  --bg-alt:      #F5E1E1;
+  --surface:     #FFFAFA;
+  --surface-2:   #F8E8E8;
+  --ink:         #3B2A2E;
+  --ink-soft:    #5A4248;
+  --muted:       #9A7E84;
+  --muted-2:     #BFA5AB;
+  --line:        #EBD5D5;
+
+  --accent:         #D87A8E;
+  --accent-soft:    #F6CFD7;
+  --accent-softer:  #FBE4EA;
+  --accent-pressed: #B85E73;
+
+  --font-jp-body:    'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'ヒラギノ丸ゴ ProN', sans-serif;
+  --font-jp-display: 'Zen Kaku Gothic New', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN', sans-serif;
+  --font-display-en: 'Fraunces', 'Playfair Display', Georgia, serif;
+  --font-mono:       'SF Mono', Menlo, Consolas, monospace;
+
+  --fz-xs:12px; --fz-sm:14px; --fz-md:16px; --fz-lg:18px;
+  --fz-xl:22px; --fz-2xl:28px; --fz-3xl:36px; --fz-4xl:44px;
+
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px;
+  --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px; --sp-16:64px;
+
+  --r-sm:6px; --r-md:12px; --r-lg:20px; --r-xl:28px; --r-pill:999px;
+
+  --shadow-sm: 0 1px 2px rgba(59, 42, 46, 0.06);
+  --shadow-md: 0 4px 16px rgba(59, 42, 46, 0.08);
+  --shadow-lg: 0 12px 40px rgba(59, 42, 46, 0.10);
+
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur: 220ms;
+
+  --wave-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 24' preserveAspectRatio='none'><path d='M0 12 Q 20 0 40 12 T 80 12' stroke='%23F6CFD7' stroke-width='2.5' fill='none'/></svg>");
+}
+@import url("./_base.css");
