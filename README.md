@@ -83,11 +83,21 @@ md-live-viewer/
 
 ## 除外ルール
 
-以下のディレクトリはインデックス対象外（`lib/indexer.js` の `EXCLUDED_DIRS` で制御）:
+`config.json` の `excludedDirs` / `excludedFiles` で指定する。デフォルトは `.git` のみ：
 
-- `.raw`, `_templates`, `.obsidian`, `Excalidraw`, `.git`, `.claude`, `node_modules`
+```json
+{
+  "current": "...",
+  "vaults": [...],
+  "excludedDirs": [".git"],
+  "excludedFiles": []
+}
+```
 
-特定のファイルを除外したい場合は `lib/indexer.js` の `EXCLUDED_ROOT_FILES`（root 直下、basename 一致）にエントリを追記する。
+- `excludedDirs`: ソース直下に該当名のディレクトリがあれば、その配下を一切インデックスしない（basename 一致）
+- `excludedFiles`: ソース直下のファイル名（`<vault>/CLAUDE.md` 等）を除外。subdir 配下は対象外
+
+未指定なら `excludedDirs: [".git"]`、`excludedFiles: []` が適用される。
 
 ## HTTP API
 

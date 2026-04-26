@@ -45,6 +45,12 @@ function loadConfig() {
     return false;
   }
   state.vaults = Array.isArray(cfg.vaults) ? cfg.vaults : [];
+  state.excludedDirs = new Set(
+    Array.isArray(cfg.excludedDirs) ? cfg.excludedDirs : ['.git']
+  );
+  state.excludedFiles = new Set(
+    Array.isArray(cfg.excludedFiles) ? cfg.excludedFiles : []
+  );
   if (state.vaults.length === 0) {
     console.warn('[md-live-viewer] config.json has no vaults');
     return false;
