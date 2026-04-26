@@ -1,0 +1,15 @@
+{
+  "current": "my-notes",
+  "vaults": [
+    {
+      "slug": "my-notes",
+      "label": "My notes",
+      "path": "/absolute/path/to/your/markdown/directory"
+    },
+    {
+      "slug": "another",
+      "label": "Another source",
+      "path": "/absolute/path/to/another/directory"
+    }
+  ]
+}
