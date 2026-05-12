@@ -47,7 +47,7 @@ body {
 }
 .site-header__wordmark {
   position: relative;
-  font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-weight: 700;
   font-style: normal;
   font-size: 28px;

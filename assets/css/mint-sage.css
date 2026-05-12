@@ -17,9 +17,9 @@
   --accent-softer:  #DFEDDF;
   --accent-pressed: #4F8460;
 
-  --font-jp-body:    'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'ヒラギノ丸ゴ ProN', sans-serif;
-  --font-jp-display: 'Zen Kaku Gothic New', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN', sans-serif;
-  --font-display-en: 'Fraunces', 'Playfair Display', Georgia, serif;
+  --font-jp-body:    'Inter', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN', 'Yu Gothic', 'Meiryo', sans-serif;
+  --font-jp-display: 'Inter', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN', 'Yu Gothic', 'Meiryo', sans-serif;
+  --font-display-en: 'Inter', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN', sans-serif;
   --font-mono:       'SF Mono', Menlo, Consolas, monospace;
 
   --fz-xs:12px; --fz-sm:14px; --fz-md:16px; --fz-lg:18px;
