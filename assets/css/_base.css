@@ -27,7 +27,13 @@ body {
 }
 @media (max-width: 820px) {
   .page { grid-template-columns: 1fr; gap: var(--sp-6); }
-  .sidebar { position: static; height: auto; padding-top: 0; }
+  .sidebar {
+    position: static;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding-top: 0;
+  }
 }
 
 /* ---------- Header ---------- */
@@ -79,6 +85,9 @@ body {
   position: sticky;
   top: var(--sp-6);
   align-self: start;
+  max-height: calc(100vh - var(--sp-6) * 2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--sp-6);
   background: var(--surface);
   border-radius: var(--r-lg);
