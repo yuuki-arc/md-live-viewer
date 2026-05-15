@@ -21,16 +21,52 @@ body {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
   gap: var(--sp-10);
-  padding: 0 var(--sp-6);
+  padding: 0 clamp(var(--sp-6), 5vw, var(--sp-16));
 }
+/* Sidebar drawer toggle — desktop hides it */
+.sidebar-toggle { display: none; }
+.sidebar-backdrop { display: none; }
+
 @media (max-width: 820px) {
   .page { grid-template-columns: 1fr; gap: var(--sp-6); }
-  .sidebar {
-    position: static;
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    padding-top: 0;
+
+  .sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    position: fixed;
+    top: var(--sp-3);
+    left: var(--sp-3);
+    z-index: 46;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--r-pill);
+    padding: var(--sp-2) var(--sp-4);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    font-family: var(--font-display-en);
+    font-weight: 700;
+    font-size: var(--fz-xs);
+    letter-spacing: 0.12em;
+    transition: background var(--dur) var(--ease);
+  }
+  .sidebar-toggle:hover { background: var(--accent-pressed); }
+  .sidebar-toggle__icon { font-size: var(--fz-lg); line-height: 1; }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 47;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur) var(--ease);
+  }
+  .sidebar-backdrop.is-open {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 
@@ -517,4 +553,25 @@ main.prose { max-width: 740px; margin: 0 auto; padding: var(--sp-10) 0 var(--sp-
 
 @media (max-width: 820px) {
   .toc { display: none; }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(85vw, 320px);
+    height: 100dvh;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    z-index: 48;
+    border-radius: 0 var(--r-lg) var(--r-lg) 0;
+    box-shadow: none;
+    padding: var(--sp-12) var(--sp-5) var(--sp-6);
+    transform: translateX(-101%);
+    transition: transform var(--dur) var(--ease);
+  }
+  .sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: var(--shadow-lg);
+  }
 }

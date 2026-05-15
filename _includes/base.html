@@ -28,8 +28,14 @@
     </header>
     <div class="wave-divider" aria-hidden="true"></div>
 
+    <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="メニューを開く">
+      <span class="sidebar-toggle__icon" aria-hidden="true">≡</span>
+      <span class="sidebar-toggle__label">MENU</span>
+    </button>
+    <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
+
     <div class="page">
-      <aside class="sidebar">
+      <aside class="sidebar" id="sidebar">
         <h3>CONTENTS</h3>
         <input type="search" id="sidebar-search" placeholder="search" autocomplete="off" />
         <ul class="side-tree" id="sidebar-tree" data-path=""></ul>
@@ -83,6 +89,7 @@
     </div>
 
     <script src="/assets/js/sidebar.js"></script>
+    <script src="/assets/js/menu-toggle.js"></script>
     <script src="/assets/js/toc.js"></script>
     <script src="/assets/js/live.js"></script>
     <script src="/assets/js/vault.js"></script>
