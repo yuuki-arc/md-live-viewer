@@ -50,7 +50,7 @@ Browser ──HTTP/SSE──> Hono (server.js, :8082)
                         ├─ indexer ── chokidar ── vault filesystem
                         ├─ render  ── markdown-it + wikilinks + callouts + gray-matter
                         ├─ tree    ── lazy subtree API
-                        ├─ search  ── O(N) scan of state.index
+                        ├─ search  ── MiniSearch (fuzzy + prefix)
                         └─ sse     ── reload bus
 ```
 
@@ -108,7 +108,7 @@ md-live-viewer/
 | GET | `/assets/**` | CSS/JS 静的配信 |
 | GET | `/_attachments/**` | currentVault の添付ファイル |
 | GET | `/api/tree?path=` | サブツリー JSON |
-| GET | `/api/search?q=` | URL・ファイル名の部分一致検索 |
+| GET | `/api/search?q=` | ファイル名・パスの fuzzy / prefix 検索 (MiniSearch) |
 | GET | `/api/vaults` | 設定済み vault 一覧 |
 | POST | `/api/switch` | body `{slug}` で切替 |
 | GET | `/api/live` | SSE、`reload` イベント受信 |
@@ -116,7 +116,6 @@ md-live-viewer/
 ## 将来の拡張
 
 - UI から任意パスの vault 追加フォーム
-- MiniSearch / Fuse.js による fuzzy 検索
 - @parcel/watcher に差替（10k+ 規模で起動高速化）
 - 現在ページの祖先ディレクトリを初期展開
 - dead wikilink のハイライト
@@ -150,5 +149,6 @@ PORT=3000 npm run dev
 - [gray-matter](https://github.com/jonschlinkert/gray-matter) — YAML frontmatter
 - [chokidar](https://github.com/paulmillr/chokidar) — ファイル監視
 - [lru-cache](https://github.com/isaacs/node-lru-cache) — 描画結果キャッシュ
+- [MiniSearch](https://github.com/lucaong/minisearch) — fuzzy / prefix 検索
 
 Obsidian callouts は自前実装（`lib/render.js` の `preprocessCallouts`）。
