@@ -128,6 +128,8 @@ npx playwright install chromium   # 初回のみ
 npm run test:e2e
 ```
 
+E2E 実行中はポート 8083 を占有する（`playwright.config.js`）。
+
 ## ロードマップ（着手順）
 
 利便性 ÷ 実装コストの費用対効果で並べた着手順。

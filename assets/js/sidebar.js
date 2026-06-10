@@ -1,14 +1,14 @@
 import { ancestorSlugs } from './tree-path.js';
 
-var tree = document.getElementById('sidebar-tree');
-var search = document.getElementById('sidebar-search');
+const tree = document.getElementById('sidebar-tree');
+const search = document.getElementById('sidebar-search');
 
-var metaSlug = document.querySelector('meta[name="source-slug"]');
-var SLUG = metaSlug ? metaSlug.getAttribute('content') || '' : '';
-var STORAGE_KEY = 'md-live-viewer-open:' + SLUG;
+const metaSlug = document.querySelector('meta[name="source-slug"]');
+const SLUG = metaSlug ? metaSlug.getAttribute('content') || '' : '';
+const STORAGE_KEY = 'md-live-viewer-open:' + SLUG;
 // tree の url はデコード済み実ファイル名。location.pathname は非 ASCII で
 // パーセントエンコードされるため、突き合わせ前にデコードして揃える。
-var CURRENT_PATH = (function () {
+const CURRENT_PATH = (function () {
   try {
     return decodeURIComponent(location.pathname);
   } catch (_) {
@@ -18,7 +18,7 @@ var CURRENT_PATH = (function () {
 
 function loadOpenSet() {
   try {
-    var raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     return new Set(raw ? JSON.parse(raw) : []);
   } catch (_) {
     return new Set();
@@ -30,29 +30,38 @@ function saveOpenSet(set) {
   } catch (_) {}
 }
 
-var openSet = loadOpenSet();
+// ユーザーが明示的に開いた details の slug（localStorage に永続化）。
+const openSet = loadOpenSet();
+// 祖先の自動展開で開いた slug。手動展開と区別し、これらは永続化しない
+// （セッション一時）。toggle が非同期発火するため、open 設定前に記録する。
+const autoOpened = new Set();
 
 async function fetchTree(path) {
-  var r = await fetch('/api/tree?path=' + encodeURIComponent(path));
+  const r = await fetch('/api/tree?path=' + encodeURIComponent(path));
+  if (!r.ok) throw new Error('GET /api/tree ' + r.status);
   return r.json();
 }
 
 // details の子をフェッチ＆描画する。toggle 経由でも祖先展開経由でも
-// 同じ Promise を共有し、二重フェッチを防ぐ。
+// 同じ Promise を共有し、二重フェッチを防ぐ。失敗した Promise はキャッシュ
+// せず、開き直したときに再試行できるようにする。
 function ensureLoaded(det, ul) {
   if (det._loadPromise) return det._loadPromise;
   det._loadPromise = (async function () {
-    var data = await fetchTree(det.dataset.path);
+    const data = await fetchTree(det.dataset.path);
     renderChildren(ul, data.children);
-  })();
+  })().catch((err) => {
+    det._loadPromise = null;
+    throw err;
+  });
   return det._loadPromise;
 }
 
 function findChildDetails(parentUl, slug) {
-  var items = parentUl.children;
-  for (var i = 0; i < items.length; i++) {
-    var det = items[i].querySelector(':scope > details');
-    if (det && det.dataset.path === slug) return det;
+  // renderChildren では details は常に li の最初の子。
+  for (const li of parentUl.children) {
+    const det = li.firstElementChild;
+    if (det && det.tagName === 'DETAILS' && det.dataset.path === slug) return det;
   }
   return null;
 }
@@ -60,14 +69,14 @@ function findChildDetails(parentUl, slug) {
 function renderChildren(parent, children) {
   parent.innerHTML = '';
   children.forEach(function (child) {
-    var li = document.createElement('li');
+    const li = document.createElement('li');
     if (child.isDir) {
-      var det = document.createElement('details');
+      const det = document.createElement('details');
       det.dataset.path = child.slug;
-      var sum = document.createElement('summary');
+      const sum = document.createElement('summary');
       sum.textContent = child.name;
       if (child.url) {
-        var a = document.createElement('a');
+        const a = document.createElement('a');
         a.href = child.url;
         a.className = 'dir-self';
         a.textContent = '·';
@@ -77,14 +86,18 @@ function renderChildren(parent, children) {
         sum.appendChild(a);
       }
       det.appendChild(sum);
-      var ul = document.createElement('ul');
+      const ul = document.createElement('ul');
       det.appendChild(ul);
       det.addEventListener('toggle', function () {
         if (det.open) {
-          openSet.add(det.dataset.path);
-          saveOpenSet(openSet);
+          // 祖先自動展開で開いたものはセッション一時とし永続化しない。
+          if (!autoOpened.has(det.dataset.path)) {
+            openSet.add(det.dataset.path);
+            saveOpenSet(openSet);
+          }
           ensureLoaded(det, ul);
         } else {
+          autoOpened.delete(det.dataset.path);
           openSet.delete(det.dataset.path);
           saveOpenSet(openSet);
         }
@@ -95,7 +108,7 @@ function renderChildren(parent, children) {
         det.open = true;
       }
     } else {
-      var link = document.createElement('a');
+      const link = document.createElement('a');
       link.href = child.url;
       link.textContent = child.name;
       if (child.url === CURRENT_PATH) {
@@ -108,59 +121,80 @@ function renderChildren(parent, children) {
 }
 
 // 現在ページの祖先ディレクトリをルート側から順に開き、各階層を
-// 遅延ロードして現在ページをツリー上に可視化する。
+// 遅延ロードして現在ページをツリー上に可視化する。展開は一時的で
+// localStorage には保存しない（ユーザーの手動開閉状態を上書きしない）。
 async function expandToCurrent() {
-  var slugs = ancestorSlugs(location.pathname);
-  var parentUl = tree;
-  for (var i = 0; i < slugs.length; i++) {
-    var det = findChildDetails(parentUl, slugs[i]);
-    if (!det) return;
-    var ul = det.querySelector(':scope > ul');
+  const slugs = ancestorSlugs(location.pathname);
+  let parentUl = tree;
+  for (const slug of slugs) {
+    const det = findChildDetails(parentUl, slug);
+    if (!det) {
+      console.warn('[sidebar] 祖先ディレクトリが見つからず自動展開を中断:', slug);
+      return;
+    }
+    const ul = det.querySelector(':scope > ul');
+    if (!openSet.has(slug)) autoOpened.add(slug);
     det.open = true;
-    openSet.add(slugs[i]);
     await ensureLoaded(det, ul);
     parentUl = ul;
   }
-  saveOpenSet(openSet);
-  var active = tree.querySelector('a.is-active');
+  const active = tree.querySelector('a.is-active');
   if (active && active.scrollIntoView) {
     active.scrollIntoView({ block: 'nearest' });
   }
 }
 
-async function loadRoot() {
-  var data = await fetchTree('');
-  renderChildren(tree, data.children);
+function renderTreeError(message) {
+  tree.innerHTML = '';
+  const li = document.createElement('li');
+  li.className = 'tree-error';
+  li.textContent = message;
+  tree.appendChild(li);
+}
+
+// ルートツリーを描画し、現在ページの祖先まで展開する。初期化と
+// 検索クリアの両方から使う。
+async function showFullTree() {
+  try {
+    const data = await fetchTree('');
+    renderChildren(tree, data.children);
+    await expandToCurrent();
+  } catch (err) {
+    console.error('[sidebar] ツリーの読み込みに失敗:', err);
+    renderTreeError('ツリーの読み込みに失敗しました。再読み込みしてください。');
+  }
 }
 
 if (tree) {
-  (async function () {
-    await loadRoot();
-    await expandToCurrent();
-  })();
+  showFullTree();
 
-  var searchTimer;
+  let searchTimer;
   if (search) {
     search.addEventListener('input', function (e) {
       clearTimeout(searchTimer);
-      var q = e.target.value.trim();
+      const q = e.target.value.trim();
       searchTimer = setTimeout(async function () {
         if (!q) {
-          await loadRoot();
-          await expandToCurrent();
+          await showFullTree();
           return;
         }
-        var r = await fetch('/api/search?q=' + encodeURIComponent(q));
-        var data = await r.json();
-        tree.innerHTML = '';
-        data.results.forEach(function (res) {
-          var li = document.createElement('li');
-          var a = document.createElement('a');
-          a.href = res.url;
-          a.textContent = res.name;
-          li.appendChild(a);
-          tree.appendChild(li);
-        });
+        try {
+          const r = await fetch('/api/search?q=' + encodeURIComponent(q));
+          if (!r.ok) throw new Error('GET /api/search ' + r.status);
+          const data = await r.json();
+          tree.innerHTML = '';
+          (data.results || []).forEach(function (res) {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = res.url;
+            a.textContent = res.name;
+            li.appendChild(a);
+            tree.appendChild(li);
+          });
+        } catch (err) {
+          console.error('[sidebar] 検索に失敗:', err);
+          renderTreeError('検索に失敗しました。再度お試しください。');
+        }
       }, 200);
     });
   }

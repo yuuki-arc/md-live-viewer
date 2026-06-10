@@ -31,3 +31,8 @@ test('パーセントエンコードされたセグメントはデコードし�
 test('連続スラッシュは無視する', () => {
   assert.deepEqual(ancestorSlugs('/a//b/c/'), ['a', 'a/b']);
 });
+
+test('不正なパーセントエンコードはクラッシュせず生セグメントにフォールバックする', () => {
+  // %E3%81 は不完全なシーケンスで decodeURIComponent が例外を投げる
+  assert.deepEqual(ancestorSlugs('/%E3%81/b/c/'), ['%E3%81', '%E3%81/b']);
+});
