@@ -62,6 +62,23 @@ test('検索をクリアすると祖先展開が復元される', async ({ page 
   await expect(page.locator('a.is-active')).toHaveAttribute('href', '/a/b/c/');
 });
 
+test('初回ツリー取得が一過性に失敗してもリトライで自己回復する', async ({ page }) => {
+  // node --watch の再起動窓を再現: root の /api/tree を初回だけ失敗させる
+  let rootCalls = 0;
+  await page.route('**/api/tree?path=', async (route) => {
+    rootCalls += 1;
+    if (rootCalls === 1) return route.abort();
+    return route.continue();
+  });
+
+  await page.goto('/a/b/c/');
+
+  // リトライによりツリーが描画され、祖先展開も成立する
+  await expect(page.locator('details[data-path="a/b"]')).toHaveAttribute('open', '');
+  await expect(page.locator('#sidebar-tree .tree-error')).toHaveCount(0);
+  expect(rootCalls).toBeGreaterThanOrEqual(2);
+});
+
 test('祖先展開で各階層の /api/tree は1回だけ取得される（二重フェッチ防止）', async ({ page }) => {
   const counts = {};
   await page.route('**/api/tree*', async (route) => {

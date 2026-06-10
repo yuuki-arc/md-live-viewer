@@ -36,10 +36,30 @@ const openSet = loadOpenSet();
 // （セッション一時）。toggle が非同期発火するため、open 設定前に記録する。
 const autoOpened = new Set();
 
-async function fetchTree(path) {
-  const r = await fetch('/api/tree?path=' + encodeURIComponent(path));
-  if (!r.ok) throw new Error('GET /api/tree ' + r.status);
-  return r.json();
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// 短いバックオフ付きでリトライする。dev では node --watch の再起動で
+// 一瞬サーバが落ちることがあり、その窓と reload が重なると初回取得が
+// 失敗してツリーが空のままになるため、自己回復させる。
+async function fetchJson(url, attempts = 4) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('GET ' + url + ' ' + r.status);
+      return await r.json();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) await delay(150 * 2 ** i);
+    }
+  }
+  throw lastErr;
+}
+
+function fetchTree(path) {
+  return fetchJson('/api/tree?path=' + encodeURIComponent(path));
 }
 
 // details の子をフェッチ＆描画する。toggle 経由でも祖先展開経由でも
@@ -144,11 +164,19 @@ async function expandToCurrent() {
   }
 }
 
-function renderTreeError(message) {
+function renderTreeError(message, onRetry) {
   tree.innerHTML = '';
   const li = document.createElement('li');
   li.className = 'tree-error';
-  li.textContent = message;
+  li.textContent = message + ' ';
+  if (onRetry) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tree-error__retry';
+    btn.textContent = '再試行';
+    btn.addEventListener('click', onRetry);
+    li.appendChild(btn);
+  }
   tree.appendChild(li);
 }
 
@@ -161,7 +189,7 @@ async function showFullTree() {
     await expandToCurrent();
   } catch (err) {
     console.error('[sidebar] ツリーの読み込みに失敗:', err);
-    renderTreeError('ツリーの読み込みに失敗しました。再読み込みしてください。');
+    renderTreeError('ツリーの読み込みに失敗しました。', showFullTree);
   }
 }
 
