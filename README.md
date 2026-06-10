@@ -115,10 +115,17 @@ md-live-viewer/
 
 ## テスト
 
-Node 標準のテストランナー（追加依存なし）。`test/` 配下の `*.test.js` を実行する。
+ユニットテストは Node 標準のテストランナー（追加依存なし）。`test/` 配下の `*.test.js` を実行する。
 
 ```bash
 npm test
+```
+
+E2E は Playwright（`@playwright/test`、dev 依存）。`e2e/fixtures/vault/` を指す一時 config を生成してサーバを起動し、ヘッドレス Chromium でサイドバーの祖先自動展開などを検証する。
+
+```bash
+npx playwright install chromium   # 初回のみ
+npm run test:e2e
 ```
 
 ## ロードマップ（着手順）

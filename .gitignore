@@ -31,3 +31,10 @@ tmp/
 dist/
 build/
 *.tmp
+
+# Playwright E2E
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+e2e/fixtures/.config.generated.json

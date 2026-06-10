@@ -16,7 +16,11 @@ import { addClient, broadcast } from './lib/sse.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
-const CONFIG_PATH = path.join(ROOT, 'config.json');
+// 既定は ROOT/config.json。E2E など別 vault を注入したい場合のみ
+// MLV_CONFIG で差し替える。
+const CONFIG_PATH = process.env.MLV_CONFIG
+  ? path.resolve(process.env.MLV_CONFIG)
+  : path.join(ROOT, 'config.json');
 const PORT = Number(process.env.PORT) || 8082;
 
 const MIME = {
