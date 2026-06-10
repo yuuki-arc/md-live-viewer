@@ -16,7 +16,13 @@ import { addClient, broadcast } from './lib/sse.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
-const CONFIG_PATH = path.join(ROOT, 'config.json');
+// 既定は ROOT/config.json。E2E など別 vault を注入したい場合のみ
+// MLV_CONFIG で差し替える。
+const CONFIG_PATH = process.env.MLV_CONFIG
+  ? path.resolve(process.env.MLV_CONFIG)
+  : path.join(ROOT, 'config.json');
+// ログで「既定の config.json なのか MLV_CONFIG 指定なのか」を区別するため。
+const CONFIG_SOURCE = process.env.MLV_CONFIG ? ' (from MLV_CONFIG)' : '';
 const PORT = Number(process.env.PORT) || 8082;
 
 const MIME = {
@@ -32,7 +38,7 @@ function loadConfig() {
     raw = readFileSync(CONFIG_PATH, 'utf8');
   } catch (err) {
     if (err.code === 'ENOENT') {
-      console.log(`[md-live-viewer] config.json not found at ${CONFIG_PATH}`);
+      console.log(`[md-live-viewer] config not found at ${CONFIG_PATH}${CONFIG_SOURCE}`);
       return false;
     }
     throw err;
@@ -41,7 +47,7 @@ function loadConfig() {
   try {
     cfg = JSON.parse(raw);
   } catch (err) {
-    console.warn(`[md-live-viewer] config.json is not valid JSON: ${err.message}`);
+    console.warn(`[md-live-viewer] config at ${CONFIG_PATH}${CONFIG_SOURCE} is not valid JSON: ${err.message}`);
     return false;
   }
   state.vaults = Array.isArray(cfg.vaults) ? cfg.vaults : [];

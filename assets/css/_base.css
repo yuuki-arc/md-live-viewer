@@ -392,6 +392,23 @@ main.prose { max-width: 740px; margin: 0 auto; padding: var(--sp-10) 0 var(--sp-
   background: var(--accent-softer);
   color: var(--accent-pressed);
 }
+.sidebar ul.side-tree li.tree-error {
+  padding: 8px;
+  font-size: var(--fz-sm);
+  color: var(--ink-soft);
+}
+.sidebar ul.side-tree .tree-error__retry {
+  font: inherit;
+  color: var(--accent-pressed);
+  background: var(--accent-softer);
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.sidebar ul.side-tree .tree-error__retry:hover {
+  background: var(--accent-soft);
+}
 .sidebar ul.side-tree details > summary {
   cursor: pointer;
   list-style: none;

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
@@ -16,5 +18,8 @@
     "markdown-it": "^14.1.0",
     "markdown-it-wikilinks": "^1.4.0",
     "minisearch": "^7.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
   }
 }
