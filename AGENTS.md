@@ -5,9 +5,9 @@
 
 ## コマンド
 
-- `npm run dev` — 開発サーバ起動（`node --watch`、ポート 8082、`PORT` 環境変数で上書き可）
+- `npm run dev` — 開発サーバ起動（`node --watch`、ポート 7777、`PORT` 環境変数で上書き可）
 - `npm test` — ユニットテスト（Node 標準テストランナー、`test/*.test.js`、追加依存なし）
-- `npm run test:e2e` — Playwright E2E（ポート 8083 を占有。初回のみ `npx playwright install chromium`）
+- `npm run test:e2e` — Playwright E2E（ポート 7778 を占有。初回のみ `npx playwright install chromium`）
 
 ## 前提・制約
 

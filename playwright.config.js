@@ -6,7 +6,7 @@ import { writeFileSync } from 'node:fs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const VAULT = join(__dirname, 'e2e', 'fixtures', 'vault');
 const GENERATED_CONFIG = join(__dirname, 'e2e', 'fixtures', '.config.generated.json');
-const PORT = 8083;
+const PORT = 7778;
 
 // vault の絶対パスはマシン依存なので、フィクスチャ vault を指す config を
 // テスト実行のたびに生成し、MLV_CONFIG でサーバに注入する。
