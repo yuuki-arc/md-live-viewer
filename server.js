@@ -23,7 +23,7 @@ const CONFIG_PATH = process.env.MLV_CONFIG
   : path.join(ROOT, 'config.json');
 // ログで「既定の config.json なのか MLV_CONFIG 指定なのか」を区別するため。
 const CONFIG_SOURCE = process.env.MLV_CONFIG ? ' (from MLV_CONFIG)' : '';
-const PORT = Number(process.env.PORT) || 8082;
+const PORT = Number(process.env.PORT) || 7777;
 
 const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',

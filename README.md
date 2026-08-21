@@ -21,7 +21,7 @@ cp config.example.json config.json
 npm run dev
 ```
 
-`http://localhost:8082/` をブラウザで開く。
+`http://localhost:7777/` をブラウザで開く。
 
 `config.json` はマシン固有の絶対パスを含むため `.gitignore` 対象。リポジトリには `config.example.json` をテンプレートとして同梱している。
 
@@ -44,7 +44,7 @@ npm run dev
 ## アーキテクチャ
 
 ```
-Browser ──HTTP/SSE──> Hono (server.js, :8082)
+Browser ──HTTP/SSE──> Hono (server.js, :7777)
                         │
                         ├─ state (in-memory: index, tree, LRU, SSE clients)
                         ├─ indexer ── chokidar ── vault filesystem
@@ -128,7 +128,7 @@ npx playwright install chromium   # 初回のみ
 npm run test:e2e
 ```
 
-E2E 実行中はポート 8083 を占有する（`playwright.config.js`）。
+E2E 実行中はポート 7778 を占有する（`playwright.config.js`）。
 
 ## ロードマップ（着手順）
 
@@ -156,7 +156,7 @@ footer の Theme select で切替、localStorage キー `md-live-viewer-theme` �
 
 ## ポート
 
-デフォルト 8082。`PORT` 環境変数で上書き可能。
+デフォルト 7777。`PORT` 環境変数で上書き可能。
 
 ```bash
 PORT=3000 npm run dev
