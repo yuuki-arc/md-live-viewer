@@ -176,4 +176,4 @@ PORT=3000 npm run dev
 - [lru-cache](https://github.com/isaacs/node-lru-cache) — 描画結果キャッシュ
 - [MiniSearch](https://github.com/lucaong/minisearch) — fuzzy / prefix 検索
 
-Obsidian callouts は自前実装（`lib/render.js` の `preprocessCallouts`）。
+Obsidian callouts は自前実装（`lib/render.js` の `obsidianCallouts`。markdown-it の core ruler によるトークン変換）。
