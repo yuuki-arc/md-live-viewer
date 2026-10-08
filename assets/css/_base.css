@@ -254,6 +254,20 @@ main.prose { max-width: 740px; margin: 0 auto; padding: var(--sp-10) 0 var(--sp-
 }
 .prose pre code { background: transparent; padding: 0; font-size: inherit; }
 
+/* mermaid 描画後（data-processed 付与後）はコードブロックの見た目を外す。
+   描画前・CDN 不達時はコードブロックのまま表示する */
+.prose pre.mermaid[data-processed] {
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: center;
+  /* .prose pre のコード用タイポグラフィが SVG 内の foreignObject ラベルへ
+     継承されないよう、通常テキストの規定値に戻す */
+  font-size: 1rem;
+  line-height: normal;
+  white-space: normal;
+}
+
 .prose img {
   max-width: 100%;
   height: auto;

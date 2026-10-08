@@ -5,6 +5,7 @@
 - **動的ソース切替**: footer の Source select からワンクリックで別ディレクトリを表示
 - **ライブリロード**: ファイル保存 → ブラウザ自動更新（SSE）
 - **Obsidian 記法対応**: `[[wikilinks]]`、`> [!note]` callout
+- **Mermaid 図**: ` ```mermaid ` フェンスをブラウザ側で SVG 描画（CDN 読み込みのため要ネットワーク。オフライン時・構文エラー時はコード表示のまま）
 - **lazy サイドバー**: 10k ページ規模を想定したディレクトリツリーの遅延展開。表示中ページの祖先ディレクトリは自動展開・ハイライト
 - **テーマ切替**: 5 種のカラーテーマ（localStorage 保存）
 - **生 Markdown モード**: `/_raw/<ページパス>/` でファイルの中身をそのまま `text/plain` 配信（JS・CSS を一切読み込まない）
@@ -49,7 +50,7 @@ Browser ──HTTP/SSE──> Hono (server.js, :7777)
                         │
                         ├─ state (in-memory: index, tree, LRU, SSE clients)
                         ├─ indexer ── chokidar ── vault filesystem
-                        ├─ render  ── markdown-it + wikilinks + callouts + gray-matter
+                        ├─ render  ── markdown-it + wikilinks + callouts + mermaid fence + gray-matter
                         ├─ tree    ── lazy subtree API
                         ├─ search  ── MiniSearch (fuzzy + prefix)
                         └─ sse     ── reload bus
@@ -79,7 +80,7 @@ md-live-viewer/
 │   └── base.html           # HTML テンプレート
 ├── assets/
 │   ├── css/                # _base.css + 5 テーマ
-│   └── js/                 # sidebar.js / live.js / vault.js
+│   └── js/                 # sidebar.js / live.js / vault.js / mermaid-init.js
 ├── config.json             # vault 一覧
 └── package.json
 ```
@@ -177,3 +178,5 @@ PORT=3000 npm run dev
 - [MiniSearch](https://github.com/lucaong/minisearch) — fuzzy / prefix 検索
 
 Obsidian callouts は自前実装（`lib/render.js` の `obsidianCallouts`。markdown-it の core ruler によるトークン変換）。
+
+Mermaid は npm 依存ではなく、ブラウザが実行時に [jsDelivr CDN](https://www.jsdelivr.com/) から ESM を読み込む（`assets/js/mermaid-init.js`、バージョン完全固定）。図の描画のみネットワークが必要で、到達不可・構文エラー時はコードブロック表示にフォールバックする。
