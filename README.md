@@ -7,6 +7,7 @@
 - **Obsidian 記法対応**: `[[wikilinks]]`、`> [!note]` callout
 - **lazy サイドバー**: 10k ページ規模を想定したディレクトリツリーの遅延展開。表示中ページの祖先ディレクトリは自動展開・ハイライト
 - **テーマ切替**: 5 種のカラーテーマ（localStorage 保存）
+- **生 Markdown モード**: `/_raw/<ページパス>/` でファイルの中身をそのまま `text/plain` 配信（JS・CSS を一切読み込まない）
 
 Eleventy 静的ビルド方式の姉妹プロジェクト `wiki-viewer/` とは独立。
 
@@ -55,6 +56,7 @@ Browser ──HTTP/SSE──> Hono (server.js, :7777)
 ```
 
 - **ページ取得**: `GET /:path/` → state.index から filePath 解決 → markdown-it で HTML 変換 → LRU キャッシュ
+- **生 Markdown**: `GET /_raw/:path/` → 同じく state.index から filePath 解決 → 無加工のまま `text/plain` で返す。HTML テンプレートを通さないため、この URL ではクライアント JS が一切走らない（レンダリング済みページの footer の Raw リンクから辿れる）
 - **サイドバー**: 初期 shell のみ、`<details>` 展開時に `/api/tree?path=...` で子を取得
 - **ファイル変更**: chokidar → index 更新 → LRU invalidate → SSE `reload`
 - **vault 切替**: `POST /api/switch {slug}` → watcher stop → state reset → 新 vault walk → SSE `reload` ブロードキャスト
@@ -71,6 +73,7 @@ md-live-viewer/
 │   ├── tree.js             # /api/tree?path= 用
 │   ├── search.js           # /api/search?q= 用
 │   ├── sse.js              # /api/live 用
+│   ├── raw.js              # /_raw/ の URL 変換
 │   └── template.js         # {{title}}/{{content}} 置換
 ├── _includes/
 │   └── base.html           # HTML テンプレート
@@ -107,6 +110,7 @@ md-live-viewer/
 | GET | `/:path/` | Markdown ページレンダリング |
 | GET | `/assets/**` | CSS/JS 静的配信 |
 | GET | `/_attachments/**` | currentVault の添付ファイル |
+| GET | `/_raw/:path/` | 生 Markdown を `text/plain` で返す（レンダリング・JS なし） |
 | GET | `/api/tree?path=` | サブツリー JSON |
 | GET | `/api/search?q=` | ファイル名・パスの fuzzy / prefix 検索 (MiniSearch) |
 | GET | `/api/vaults` | 設定済み vault 一覧 |

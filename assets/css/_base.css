@@ -320,6 +320,23 @@ main.prose { max-width: 740px; margin: 0 auto; padding: var(--sp-10) 0 var(--sp-
 }
 .site-footer .heart { color: var(--accent); }
 
+.raw-link {
+  font-family: var(--font-display-en);
+  font-size: var(--fz-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.raw-link:hover,
+.raw-link:focus {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+
 .theme-picker {
   display: inline-flex;
   align-items: center;

@@ -13,6 +13,7 @@ import * as searchLib from './lib/search.js';
 import { render } from './lib/render.js';
 import { wrap } from './lib/template.js';
 import { addClient, broadcast } from './lib/sse.js';
+import { rawPathToUrl, toRawHref } from './lib/raw.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -134,6 +135,24 @@ app.get('/_attachments/*', async (c) => {
   }
 });
 
+// 生 Markdown をそのまま返すモード。catch-all より前に登録する必要がある。
+// 参照できるのは state.index に載ったファイルだけなので、../ 等は構造的に届かない。
+app.get('/_raw/*', (c) => {
+  const url = rawPathToUrl(c.req.path);
+  if (!url) return c.notFound();
+  const entry = state.index.get(url);
+  if (!entry) return c.notFound();
+  try {
+    // render() は html: true でサニタイズしない設計のため、raw 側は
+    // nosniff を付けて Markdown 内の生 HTML が描画されないようにする。
+    return c.text(readFileSync(entry.filePath, 'utf8'), 200, {
+      'X-Content-Type-Options': 'nosniff',
+    });
+  } catch {
+    return c.notFound();
+  }
+});
+
 app.get('/api/vaults', (c) => {
   return c.json({
     current: state.currentSlug,
@@ -230,7 +249,12 @@ app.get('*', (c) => {
   const entry = state.index.get(url);
   if (!entry) return c.notFound();
   const { html, title } = render(entry.filePath);
-  const wrapped = wrap({ title, content: html, source: state.currentSlug });
+  const wrapped = wrap({
+    title,
+    content: html,
+    source: state.currentSlug,
+    rawLink: `<a class="raw-link" href="${toRawHref(url)}">Raw</a>`,
+  });
   return c.html(wrapped);
 });
 
