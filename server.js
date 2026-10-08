@@ -14,6 +14,7 @@ import { render } from './lib/render.js';
 import { wrap } from './lib/template.js';
 import { addClient, broadcast } from './lib/sse.js';
 import { rawPathToUrl, toRawHref } from './lib/raw.js';
+import { escapeHtml } from './lib/escape.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -66,14 +67,6 @@ function loadConfig() {
   state.currentSlug = current.slug;
   state.currentVault = current.path;
   return true;
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 function renderIndexBody() {
