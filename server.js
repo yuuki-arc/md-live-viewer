@@ -17,6 +17,7 @@ import { rawPathToUrl, toRawHref } from './lib/raw.js';
 import { escapeHtml } from './lib/escape.js';
 import { encodePath, decodePath } from './assets/js/url-path.js';
 import { resolveBindHost, formatServerUrl } from './lib/host.js';
+import { createSerialQueue } from './lib/serial.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -115,6 +116,8 @@ function requestPath(c) {
   return decodePath(new URL(c.req.url).pathname);
 }
 
+const switchQueue = createSerialQueue();
+
 const app = new Hono();
 
 app.use('/assets/*', serveStatic({ root: ROOT }));
@@ -187,10 +190,14 @@ app.post('/api/switch', async (c) => {
   const vault = state.vaults.find((v) => v.slug === slug);
   if (!vault) return c.json({ ok: false, error: 'unknown slug' }, 400);
   try {
-    await indexer.stop();
-    resetState();
-    state.currentSlug = vault.slug;
-    await indexer.load(vault.path);
+    // 切替が重なると、片方の watcher が停止されずに残ったり、別 vault の
+    // ファイルが index に混ざったりするため直列化する
+    await switchQueue(async () => {
+      await indexer.stop();
+      resetState();
+      state.currentSlug = vault.slug;
+      await indexer.load(vault.path);
+    });
     broadcast('reload', { scope: 'all' });
     return c.json({ ok: true, slug: vault.slug });
   } catch (err) {
