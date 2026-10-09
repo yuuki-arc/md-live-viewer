@@ -27,11 +27,11 @@ writeFileSync(
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
-  use: { baseURL: `http://localhost:${PORT}` },
+  use: { baseURL: `http://127.0.0.1:${PORT}` },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: 'node server.js',
-    url: `http://localhost:${PORT}/`,
+    url: `http://127.0.0.1:${PORT}/`,
     reuseExistingServer: false,
     env: { PORT: String(PORT), MLV_CONFIG: GENERATED_CONFIG },
   },

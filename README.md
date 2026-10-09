@@ -159,12 +159,16 @@ E2E 実行中はポート 7778 を占有する（`playwright.config.js`）。
 
 footer の Theme select で切替、localStorage キー `md-live-viewer-theme` に保存。
 
-## ポート
+## ポート・待受アドレス
 
 デフォルト 7777。`PORT` 環境変数で上書き可能。
 
+既定では `127.0.0.1`（このマシン）からのみアクセスできる。vault の内容や絶対パスを返すため、
+LAN 内の別端末（スマホ等）から見たい場合だけ `HOST` で待受アドレスを明示する。
+
 ```bash
 PORT=3000 npm run dev
+HOST=0.0.0.0 npm run dev   # LAN に公開する（信頼できるネットワークでのみ）
 ```
 
 ## 依存
