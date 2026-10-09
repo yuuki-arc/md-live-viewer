@@ -164,11 +164,12 @@ footer の Theme select で切替、localStorage キー `md-live-viewer-theme` �
 デフォルト 7777。`PORT` 環境変数で上書き可能。
 
 既定では `127.0.0.1`（このマシン）からのみアクセスできる。vault の内容や絶対パスを返すため、
-LAN 内の別端末（スマホ等）から見たい場合だけ `HOST` で待受アドレスを明示する。
+LAN 内の別端末（スマホ等）から見たい場合だけ `MLV_HOST` で待受アドレスを明示する
+（汎用の `HOST` はシェルがホスト名を入れていることがあるため読まない）。
 
 ```bash
 PORT=3000 npm run dev
-HOST=0.0.0.0 npm run dev   # LAN に公開する（信頼できるネットワークでのみ）
+MLV_HOST=0.0.0.0 npm run dev   # LAN に公開する（信頼できるネットワークでのみ）
 ```
 
 ## 依存

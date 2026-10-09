@@ -16,6 +16,7 @@ import { addClient, broadcast } from './lib/sse.js';
 import { rawPathToUrl, toRawHref } from './lib/raw.js';
 import { escapeHtml } from './lib/escape.js';
 import { encodePath, decodePath } from './assets/js/url-path.js';
+import { resolveBindHost, formatServerUrl } from './lib/host.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -27,9 +28,7 @@ const CONFIG_PATH = process.env.MLV_CONFIG
 // ログで「既定の config.json なのか MLV_CONFIG 指定なのか」を区別するため。
 const CONFIG_SOURCE = process.env.MLV_CONFIG ? ' (from MLV_CONFIG)' : '';
 const PORT = Number(process.env.PORT) || 7777;
-// vault の内容や絶対パス（/api/vaults）を返すため、既定ではループバックのみで待ち受ける。
-// LAN 内の別端末から見たい場合は HOST=0.0.0.0 を明示する
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = resolveBindHost(process.env);
 
 const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
@@ -286,6 +285,6 @@ app.notFound((c) => c.text('Not Found', 404));
     console.log('[md-live-viewer] running in welcome mode (no usable config.json)');
   }
   serve({ fetch: app.fetch, port: PORT, hostname: HOST }, (info) => {
-    console.log(`[md-live-viewer] Server at http://${HOST}:${info.port}/`);
+    console.log(`[md-live-viewer] Server at ${formatServerUrl(HOST, info.port)}`);
   });
 })();
