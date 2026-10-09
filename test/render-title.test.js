@@ -51,3 +51,12 @@ test('フェンスの後にある H1 はタイトルになる', () => {
     assert.equal(render(file).title, 'Real Title');
   });
 });
+
+test('ファイルが存在しなければ例外ではなく null を返す（index 登録後に削除された場合）', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mlv-title-'));
+  try {
+    assert.equal(render(join(dir, 'gone.md')), null);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

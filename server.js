@@ -256,7 +256,9 @@ app.get('*', (c) => {
   const url = reqPath.endsWith('/') ? reqPath : reqPath + '/';
   const entry = state.index.get(url);
   if (!entry) return c.notFound();
-  const { html, title } = render(entry.filePath);
+  const rendered = render(entry.filePath);
+  if (!rendered) return c.notFound();
+  const { html, title } = rendered;
   const wrapped = wrap({
     title,
     content: html,
