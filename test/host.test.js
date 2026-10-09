@@ -60,3 +60,9 @@ test('Origin はスキームと既定ポートの表記揺れも考慮して比�
 test('角括弧付きの IPv6 待受アドレスを二重に囲まない', () => {
   assert.equal(formatServerUrl('[::1]', 7777), 'http://[::1]:7777/');
 });
+
+test('待受アドレスそのものを Host にしたアクセスは受け付ける', () => {
+  assert.equal(isAllowedRequest({ host: '127.0.0.2:7777' }, '127.0.0.2'), true);
+  assert.equal(isAllowedRequest({ host: '[::ffff:127.0.0.1]:7777' }, '::ffff:127.0.0.1'), true);
+  assert.equal(isAllowedRequest({ host: 'evil.example:7777' }, '127.0.0.2'), false);
+});
