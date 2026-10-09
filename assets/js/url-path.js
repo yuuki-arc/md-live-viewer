@@ -17,3 +17,11 @@ export function decodePath(pathname) {
     return null;
   }
 }
+
+// location.pathname を state.index のキー形式（デコード済み・末尾 /）にする。
+// SSE の reload イベントの scope もこの形式なので、比較前に揃えるのに使う
+export function pageKey(pathname) {
+  const decoded = decodePath(pathname);
+  if (decoded === null) return null;
+  return decoded.endsWith('/') ? decoded : decoded + '/';
+}

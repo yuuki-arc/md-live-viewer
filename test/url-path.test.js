@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { encodePath, decodePath } from '../assets/js/url-path.js';
+import { encodePath, decodePath, pageKey } from '../assets/js/url-path.js';
 
 test('encodePath はセグメントごとにエンコードし、区切りの / は残す', () => {
   assert.equal(encodePath('/a/b/c/'), '/a/b/c/');
@@ -24,4 +24,15 @@ test('decodePath は encodePath の逆変換になる', () => {
 test('decodePath は不正なエスケープなら null を返す', () => {
   assert.equal(decodePath('/%E3%83/'), null);
   assert.equal(decodePath('/50%/'), null);
+});
+
+test('pageKey は location.pathname を index のキー形式（デコード済み・末尾 /）に揃える', () => {
+  // SSE の reload イベントの scope はこの形式で届く
+  assert.equal(pageKey('/%E3%83%A1%E3%83%A2/'), '/メモ/');
+  assert.equal(pageKey('/a/b'), '/a/b/');
+  assert.equal(pageKey('/special/Q%26A/'), '/special/Q&A/');
+});
+
+test('pageKey は不正なエスケープなら null を返す', () => {
+  assert.equal(pageKey('/%E3%83/'), null);
 });
