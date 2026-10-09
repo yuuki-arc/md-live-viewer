@@ -62,3 +62,9 @@ test('ラベルは HTML エスケープされる', () => {
 test('コードスパン内の [[...]] はリンク化しない', () => {
   assert.deepEqual(links(renderMd('`[[top]]`\n')), []);
 });
+
+test('. や .. のパス要素を含む wikilink は別ページを指さないようリンク化しない', () => {
+  for (const src of ['[[../x]]', '[[a/../b]]', '[[./x]]']) {
+    assert.deepEqual(links(renderMd(src + '\n')), [], src);
+  }
+});
