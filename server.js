@@ -16,6 +16,8 @@ import { addClient, broadcast } from './lib/sse.js';
 import { rawPathToUrl, toRawHref } from './lib/raw.js';
 import { escapeHtml } from './lib/escape.js';
 import { encodePath, decodePath } from './assets/js/url-path.js';
+import { resolveBindHost, formatServerUrl, isAllowedRequest } from './lib/host.js';
+import { createSerialQueue } from './lib/serial.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -27,9 +29,7 @@ const CONFIG_PATH = process.env.MLV_CONFIG
 // ログで「既定の config.json なのか MLV_CONFIG 指定なのか」を区別するため。
 const CONFIG_SOURCE = process.env.MLV_CONFIG ? ' (from MLV_CONFIG)' : '';
 const PORT = Number(process.env.PORT) || 7777;
-// vault の内容や絶対パス（/api/vaults）を返すため、既定ではループバックのみで待ち受ける。
-// LAN 内の別端末から見たい場合は HOST=0.0.0.0 を明示する
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = resolveBindHost(process.env);
 
 const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
@@ -116,7 +116,18 @@ function requestPath(c) {
   return decodePath(new URL(c.req.url).pathname);
 }
 
+const switchQueue = createSerialQueue();
+
 const app = new Hono();
+
+app.use('*', async (c, next) => {
+  const allowed = isAllowedRequest(
+    { host: c.req.header('host'), origin: c.req.header('origin') },
+    HOST
+  );
+  if (!allowed) return c.text('Forbidden', 403);
+  await next();
+});
 
 app.use('/assets/*', serveStatic({ root: ROOT }));
 
@@ -188,10 +199,14 @@ app.post('/api/switch', async (c) => {
   const vault = state.vaults.find((v) => v.slug === slug);
   if (!vault) return c.json({ ok: false, error: 'unknown slug' }, 400);
   try {
-    await indexer.stop();
-    resetState();
-    state.currentSlug = vault.slug;
-    await indexer.load(vault.path);
+    // 切替が重なると、片方の watcher が停止されずに残ったり、別 vault の
+    // ファイルが index に混ざったりするため直列化する
+    await switchQueue(async () => {
+      await indexer.stop();
+      resetState();
+      state.currentSlug = vault.slug;
+      await indexer.load(vault.path);
+    });
     broadcast('reload', { scope: 'all' });
     return c.json({ ok: true, slug: vault.slug });
   } catch (err) {
@@ -257,7 +272,9 @@ app.get('*', (c) => {
   const url = reqPath.endsWith('/') ? reqPath : reqPath + '/';
   const entry = state.index.get(url);
   if (!entry) return c.notFound();
-  const { html, title } = render(entry.filePath);
+  const rendered = render(entry.filePath);
+  if (!rendered) return c.notFound();
+  const { html, title } = rendered;
   const wrapped = wrap({
     title,
     content: html,
@@ -286,6 +303,6 @@ app.notFound((c) => c.text('Not Found', 404));
     console.log('[md-live-viewer] running in welcome mode (no usable config.json)');
   }
   serve({ fetch: app.fetch, port: PORT, hostname: HOST }, (info) => {
-    console.log(`[md-live-viewer] Server at http://${HOST}:${info.port}/`);
+    console.log(`[md-live-viewer] Server at ${formatServerUrl(HOST, info.port)}`);
   });
 })();

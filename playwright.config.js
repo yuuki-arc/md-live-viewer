@@ -28,7 +28,16 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   use: { baseURL: `http://127.0.0.1:${PORT}` },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /live-reload\.spec\.js/ },
+    // vault のファイルを追加・削除して全ページをリロードさせるため、他の E2E の後に実行する
+    {
+      name: 'live',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /live-reload\.spec\.js/,
+      dependencies: ['chromium'],
+    },
+  ],
   webServer: {
     command: 'node server.js',
     url: `http://127.0.0.1:${PORT}/`,

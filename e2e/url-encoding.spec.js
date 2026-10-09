@@ -69,3 +69,10 @@ test('予約文字を含む名前の添付ファイルを取得できる', async
   expect(res.status()).toBe(200);
   expect(await res.text()).toBe(readFileSync(join(VAULT, '_attachments', 'Q&A #1.txt'), 'utf8'));
 });
+
+test('見出し付き wikilink は見出しの位置までスクロールする', async ({ page }) => {
+  await page.goto('/special/links/');
+  await page.locator('a.wikilink', { hasText: '見出しへ' }).click();
+  await expect(page).toHaveURL(/\/special\/heading-target\/#second-part$/);
+  await expect(page.locator('h2#second-part')).toBeInViewport();
+});

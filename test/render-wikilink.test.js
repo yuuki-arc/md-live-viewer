@@ -54,6 +54,32 @@ test('見出し付き [[page#heading]] はページ URL にフラグメントを
   assert.deepEqual(link, { href: encodePath('/メモ/') + '#' + encodeURIComponent('見出し'), label: 'メモ' });
 });
 
+test('フラグメントは toc.js が見出しに付ける ID と同じ規則（slugify）で作る', () => {
+  const [link] = links(renderMd('[[a#My Heading]]\n'));
+  assert.equal(link.href, '/a/#my-heading');
+});
+
+test('同一ページの見出し [[#heading]] はフラグメントだけを指す', () => {
+  const [link] = links(renderMd('[[#My Heading]]\n'));
+  assert.deepEqual(link, { href: '#my-heading', label: 'My Heading' });
+});
+
+test('[[page#]] は見出しなしのページリンクになる', () => {
+  assert.equal(links(renderMd('[[a#]]\n'))[0].href, '/a/');
+});
+
+test('別名が空の [[page|]] はページ名をラベルにする', () => {
+  assert.deepEqual(links(renderMd('[[a|]]\n'))[0], { href: '/a/', label: 'a' });
+});
+
+test('リンク先が空の [[|x]] や [[#]] はリンク化せず文字のまま残す', () => {
+  for (const src of ['[[|x]]', '[[#]]', '[[ | ]]']) {
+    const html = renderMd(src + '\n');
+    assert.deepEqual(links(html), [], src);
+    assert.ok(html.includes(src.replace(/&/g, '&amp;')), `${src} がそのまま表示される`);
+  }
+});
+
 test('ラベルは HTML エスケープされる', () => {
   const html = renderMd('[[a|<b>x</b>]]\n');
   assert.match(html, /class="wikilink">&lt;b&gt;x&lt;\/b&gt;<\/a>/);

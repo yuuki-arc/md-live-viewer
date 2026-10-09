@@ -70,18 +70,34 @@ md-live-viewer/
 ├── lib/
 │   ├── state.js            # 中央状態
 │   ├── indexer.js          # walk + chokidar
-│   ├── render.js           # markdown-it + wikilinks + callouts
+│   ├── render.js           # markdown-it + wikilinks + callouts + mermaid フェンス
 │   ├── tree.js             # /api/tree?path= 用
 │   ├── search.js           # /api/search?q= 用
 │   ├── sse.js              # /api/live 用
 │   ├── raw.js              # /_raw/ の URL 変換
-│   └── template.js         # {{title}}/{{content}} 置換
+│   ├── template.js         # {{title}} / {{source}} / {{rawLink}} / {{content}} 置換
+│   ├── escape.js           # HTML エスケープ
+│   ├── host.js             # 待受アドレスの決定、Host / Origin の検証
+│   └── serial.js           # 非同期処理の直列化（vault 切替用）
 ├── _includes/
 │   └── base.html           # HTML テンプレート
 ├── assets/
 │   ├── css/                # _base.css + 5 テーマ
-│   └── js/                 # sidebar.js / live.js / vault.js / mermaid-init.js
-├── config.json             # vault 一覧
+│   └── js/
+│       ├── sidebar.js      # lazy サイドバー・検索
+│       ├── tree-path.js    # 現在ページの祖先ディレクトリの導出
+│       ├── url-path.js     # ページ URL とエンコード済みパスの相互変換（サーバと共有）
+│       ├── live.js         # SSE によるライブリロード
+│       ├── toc.js          # 目次
+│       ├── slug.js         # 見出し ID の生成（toc.js と wikilink で共有）
+│       ├── menu-toggle.js  # モバイルのサイドバー開閉
+│       ├── vault.js        # Source 切替
+│       └── mermaid-init.js # Mermaid 図の描画
+├── test/                   # ユニットテスト（node --test）
+├── e2e/                    # Playwright E2E（fixtures/vault/ がテスト用 vault）
+├── config.example.json     # config.json のテンプレート
+├── config.json             # vault 一覧（.gitignore 対象）
+├── playwright.config.js
 └── package.json
 ```
 
@@ -164,12 +180,17 @@ footer の Theme select で切替、localStorage キー `md-live-viewer-theme` �
 デフォルト 7777。`PORT` 環境変数で上書き可能。
 
 既定では `127.0.0.1`（このマシン）からのみアクセスできる。vault の内容や絶対パスを返すため、
-LAN 内の別端末（スマホ等）から見たい場合だけ `HOST` で待受アドレスを明示する。
+LAN 内の別端末（スマホ等）から見たい場合だけ `MLV_HOST` で待受アドレスを明示する
+（汎用の `HOST` はシェルがホスト名を入れていることがあるため読まない）。
 
 ```bash
 PORT=3000 npm run dev
-HOST=0.0.0.0 npm run dev   # LAN に公開する（信頼できるネットワークでのみ）
+MLV_HOST=0.0.0.0 npm run dev   # LAN に公開する（信頼できるネットワークでのみ）
 ```
+
+ループバック待受時は `Host` ヘッダが `localhost` / `127.0.0.1` / `[::1]` 以外のリクエストを 403 にする
+（DNS リバインディング対策）。また `Origin` ヘッダ付きのリクエストは同一オリジンのみ受け付ける
+（他サイトからの vault 切替などの CSRF 対策）。
 
 ## 依存
 
