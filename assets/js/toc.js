@@ -1,3 +1,5 @@
+import { slugify } from './slug.js';
+
 (function () {
   var STORAGE_KEY = 'md-live-viewer-toc-open';
   var root = document.getElementById('toc');
@@ -6,20 +8,10 @@
   var prose = document.querySelector('main.prose');
   if (!root || !list || !toggle || !prose) return;
 
-  function slugify(text, index) {
-    var s = (text || '')
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, '-')
-      .replace(/[^\p{Letter}\p{Number}\-_]/gu, '');
-    if (!s) s = 'heading-' + index;
-    return s;
-  }
-
   function ensureUniqueId(headings) {
     var used = Object.create(null);
     headings.forEach(function (h, i) {
-      var base = h.id || slugify(h.textContent, i + 1);
+      var base = h.id || slugify(h.textContent) || 'heading-' + (i + 1);
       var id = base;
       var n = 2;
       while (used[id] || (document.getElementById(id) && document.getElementById(id) !== h)) {
