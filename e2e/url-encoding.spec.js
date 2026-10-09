@@ -63,3 +63,9 @@ test('wikilink をクリックすると正規形の URL でページを開ける
   await page.locator('a.wikilink', { hasText: '日本語へ' }).click();
   await expect(page.locator('main.prose h1')).toHaveText('メモ');
 });
+
+test('予約文字を含む名前の添付ファイルを取得できる', async ({ request }) => {
+  const res = await request.get(encodePath('/_attachments/Q&A #1.txt'));
+  expect(res.status()).toBe(200);
+  expect(await res.text()).toBe(readFileSync(join(VAULT, '_attachments', 'Q&A #1.txt'), 'utf8'));
+});

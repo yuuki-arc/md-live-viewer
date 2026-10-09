@@ -23,7 +23,7 @@ cp config.example.json config.json
 npm run dev
 ```
 
-`http://localhost:7777/` をブラウザで開く。
+`http://127.0.0.1:7777/` をブラウザで開く（IPv4 のループバックで待ち受けるため、`localhost` を IPv6 の `::1` で解決するツールでは接続できない）。
 
 `config.json` はマシン固有の絶対パスを含むため `.gitignore` 対象。リポジトリには `config.example.json` をテンプレートとして同梱している。
 
