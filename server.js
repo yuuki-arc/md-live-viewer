@@ -16,7 +16,7 @@ import { addClient, broadcast } from './lib/sse.js';
 import { rawPathToUrl, toRawHref } from './lib/raw.js';
 import { escapeHtml } from './lib/escape.js';
 import { encodePath, decodePath } from './assets/js/url-path.js';
-import { resolveBindHost, formatServerUrl } from './lib/host.js';
+import { resolveBindHost, formatServerUrl, isAllowedRequest } from './lib/host.js';
 import { createSerialQueue } from './lib/serial.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -119,6 +119,15 @@ function requestPath(c) {
 const switchQueue = createSerialQueue();
 
 const app = new Hono();
+
+app.use('*', async (c, next) => {
+  const allowed = isAllowedRequest(
+    { host: c.req.header('host'), origin: c.req.header('origin') },
+    HOST
+  );
+  if (!allowed) return c.text('Forbidden', 403);
+  await next();
+});
 
 app.use('/assets/*', serveStatic({ root: ROOT }));
 
