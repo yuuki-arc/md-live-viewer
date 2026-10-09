@@ -38,3 +38,5 @@ build/
 /blob-report/
 /playwright/.cache/
 e2e/fixtures/.config.generated.json
+# E2E がテスト中に作る一時ファイル
+e2e/fixtures/vault/**/_tmp-*
