@@ -16,7 +16,6 @@
     "hono": "^4.6.0",
     "lru-cache": "^11.0.0",
     "markdown-it": "^14.1.0",
-    "markdown-it-wikilinks": "^1.4.0",
     "minisearch": "^7.2.0"
   },
   "devDependencies": {

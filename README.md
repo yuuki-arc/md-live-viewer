@@ -171,12 +171,12 @@ PORT=3000 npm run dev
 
 - [Hono](https://hono.dev/) — HTTP ルーティング
 - [markdown-it](https://github.com/markdown-it/markdown-it) — Markdown パーサ
-- [markdown-it-wikilinks](https://github.com/jsepia/markdown-it-wikilinks) — `[[links]]`
 - [gray-matter](https://github.com/jonschlinkert/gray-matter) — YAML frontmatter
 - [chokidar](https://github.com/paulmillr/chokidar) — ファイル監視
 - [lru-cache](https://github.com/isaacs/node-lru-cache) — 描画結果キャッシュ
 - [MiniSearch](https://github.com/lucaong/minisearch) — fuzzy / prefix 検索
 
 Obsidian callouts は自前実装（`lib/render.js` の `obsidianCallouts`。markdown-it の core ruler によるトークン変換）。
+`[[wikilinks]]` も自前実装（`lib/render.js` の `obsidianWikilinks`）。href はサイドバーと同じ正規形（セグメント単位でエンコード・末尾 `/`）。
 
 Mermaid は npm 依存ではなく、ブラウザが実行時に [jsDelivr CDN](https://www.jsdelivr.com/) から ESM を読み込む（`assets/js/mermaid-init.js`、バージョン完全固定）。図の描画のみネットワークが必要で、到達不可・構文エラー時はコードブロック表示にフォールバックする。

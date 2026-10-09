@@ -52,3 +52,14 @@ test('検索結果のリンクも予約文字をエンコードする', async ({
 test('不正なパーセントエスケープは 404', async ({ request }) => {
   expect((await request.get('/special/%E3%83/')).status()).toBe(404);
 });
+
+test('wikilink をクリックすると正規形の URL でページを開ける', async ({ page }) => {
+  await page.goto('/special/links/');
+  await page.locator('a.wikilink', { hasText: 'special/Q&A' }).click();
+  await expect(page).toHaveURL(/\/special\/Q%26A\/$/);
+  await expect(page.locator('main.prose h1')).toHaveText('Q and A');
+
+  await page.goto('/special/links/');
+  await page.locator('a.wikilink', { hasText: '日本語へ' }).click();
+  await expect(page.locator('main.prose h1')).toHaveText('メモ');
+});
