@@ -23,7 +23,7 @@ cp config.example.json config.json
 npm run dev
 ```
 
-`http://localhost:7777/` をブラウザで開く。
+`http://127.0.0.1:7777/` をブラウザで開く（IPv4 のループバックで待ち受けるため、`localhost` を IPv6 の `::1` で解決するツールでは接続できない）。
 
 `config.json` はマシン固有の絶対パスを含むため `.gitignore` 対象。リポジトリには `config.example.json` をテンプレートとして同梱している。
 
@@ -159,24 +159,28 @@ E2E 実行中はポート 7778 を占有する（`playwright.config.js`）。
 
 footer の Theme select で切替、localStorage キー `md-live-viewer-theme` に保存。
 
-## ポート
+## ポート・待受アドレス
 
 デフォルト 7777。`PORT` 環境変数で上書き可能。
 
+既定では `127.0.0.1`（このマシン）からのみアクセスできる。vault の内容や絶対パスを返すため、
+LAN 内の別端末（スマホ等）から見たい場合だけ `HOST` で待受アドレスを明示する。
+
 ```bash
 PORT=3000 npm run dev
+HOST=0.0.0.0 npm run dev   # LAN に公開する（信頼できるネットワークでのみ）
 ```
 
 ## 依存
 
 - [Hono](https://hono.dev/) — HTTP ルーティング
 - [markdown-it](https://github.com/markdown-it/markdown-it) — Markdown パーサ
-- [markdown-it-wikilinks](https://github.com/jsepia/markdown-it-wikilinks) — `[[links]]`
 - [gray-matter](https://github.com/jonschlinkert/gray-matter) — YAML frontmatter
 - [chokidar](https://github.com/paulmillr/chokidar) — ファイル監視
 - [lru-cache](https://github.com/isaacs/node-lru-cache) — 描画結果キャッシュ
 - [MiniSearch](https://github.com/lucaong/minisearch) — fuzzy / prefix 検索
 
 Obsidian callouts は自前実装（`lib/render.js` の `obsidianCallouts`。markdown-it の core ruler によるトークン変換）。
+`[[wikilinks]]` も自前実装（`lib/render.js` の `obsidianWikilinks`）。href はサイドバーと同じ正規形（セグメント単位でエンコード・末尾 `/`）。
 
 Mermaid は npm 依存ではなく、ブラウザが実行時に [jsDelivr CDN](https://www.jsdelivr.com/) から ESM を読み込む（`assets/js/mermaid-init.js`、バージョン完全固定）。図の描画のみネットワークが必要で、到達不可・構文エラー時はコードブロック表示にフォールバックする。
