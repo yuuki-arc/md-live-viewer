@@ -15,6 +15,7 @@ import { wrap } from './lib/template.js';
 import { addClient, broadcast } from './lib/sse.js';
 import { rawPathToUrl, toRawHref } from './lib/raw.js';
 import { escapeHtml } from './lib/escape.js';
+import { encodePath, decodePath } from './assets/js/url-path.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -74,7 +75,7 @@ function renderIndexBody() {
   const items = children
     .map((c) => {
       const target = c.url
-        ? `<a href="${encodeURI(c.url)}">${escapeHtml(c.name)}</a>`
+        ? `<a href="${encodePath(c.url)}">${escapeHtml(c.name)}</a>`
         : `<span>${escapeHtml(c.name)}</span>`;
       const tag = c.isDir ? ` <span class="dir-badge">/</span>` : '';
       return `<li>${target}${tag}</li>`;
@@ -105,13 +106,22 @@ npm run dev   # サーバを再起動</code></pre>
 <p class="subtle">複数のディレクトリを <code>vaults</code> に並べると、footer の Source select で切り替えられるようになります。</p>`;
 }
 
+// c.req.path は decodeURI 相当で、%26(&) %23(#) %25(%) などを復元しない。
+// state.index のキーは実ファイル名そのままなので、生のパスをセグメント単位でデコードする。
+// 不正なエスケープなら null
+function requestPath(c) {
+  return decodePath(new URL(c.req.url).pathname);
+}
+
 const app = new Hono();
 
 app.use('/assets/*', serveStatic({ root: ROOT }));
 
 app.get('/_attachments/*', async (c) => {
   if (!state.currentVault) return c.notFound();
-  const rel = decodeURIComponent(c.req.path.replace(/^\/_attachments\//, ''));
+  const reqPath = requestPath(c);
+  if (reqPath === null) return c.notFound();
+  const rel = reqPath.replace(/^\/_attachments\//, '');
   const attachmentsRoot = path.resolve(state.currentVault, '_attachments');
   const filePath = path.resolve(attachmentsRoot, rel);
   if (!filePath.startsWith(attachmentsRoot + path.sep) && filePath !== attachmentsRoot) {
@@ -131,7 +141,8 @@ app.get('/_attachments/*', async (c) => {
 // 生 Markdown をそのまま返すモード。catch-all より前に登録する必要がある。
 // 参照できるのは state.index に載ったファイルだけなので、../ 等は構造的に届かない。
 app.get('/_raw/*', (c) => {
-  const url = rawPathToUrl(c.req.path);
+  const reqPath = requestPath(c);
+  const url = reqPath === null ? null : rawPathToUrl(reqPath);
   if (!url) return c.notFound();
   const entry = state.index.get(url);
   if (!entry) return c.notFound();
@@ -238,7 +249,9 @@ app.get('/', (c) => {
 });
 
 app.get('*', (c) => {
-  const url = c.req.path.endsWith('/') ? c.req.path : c.req.path + '/';
+  const reqPath = requestPath(c);
+  if (reqPath === null) return c.notFound();
+  const url = reqPath.endsWith('/') ? reqPath : reqPath + '/';
   const entry = state.index.get(url);
   if (!entry) return c.notFound();
   const { html, title } = render(entry.filePath);

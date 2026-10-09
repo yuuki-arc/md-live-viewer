@@ -1,4 +1,5 @@
 import { ancestorSlugs } from './tree-path.js';
+import { encodePath, decodePath } from './url-path.js';
 
 const tree = document.getElementById('sidebar-tree');
 const search = document.getElementById('sidebar-search');
@@ -6,15 +7,9 @@ const search = document.getElementById('sidebar-search');
 const metaSlug = document.querySelector('meta[name="source-slug"]');
 const SLUG = metaSlug ? metaSlug.getAttribute('content') || '' : '';
 const STORAGE_KEY = 'md-live-viewer-open:' + SLUG;
-// tree の url はデコード済み実ファイル名。location.pathname は非 ASCII で
-// パーセントエンコードされるため、突き合わせ前にデコードして揃える。
-const CURRENT_PATH = (function () {
-  try {
-    return decodeURIComponent(location.pathname);
-  } catch (_) {
-    return location.pathname;
-  }
-})();
+// tree の url はデコード済み実ファイル名。location.pathname はエンコード済み
+// なので、突き合わせ前にデコードして揃える。逆に href に入れるときはエンコードする。
+const CURRENT_PATH = decodePath(location.pathname) ?? location.pathname;
 
 function loadOpenSet() {
   try {
@@ -97,7 +92,7 @@ function renderChildren(parent, children) {
       sum.textContent = child.name;
       if (child.url) {
         const a = document.createElement('a');
-        a.href = child.url;
+        a.href = encodePath(child.url);
         a.className = 'dir-self';
         a.textContent = '·';
         a.title = 'open ' + child.name;
@@ -129,7 +124,7 @@ function renderChildren(parent, children) {
       }
     } else {
       const link = document.createElement('a');
-      link.href = child.url;
+      link.href = encodePath(child.url);
       link.textContent = child.name;
       if (child.url === CURRENT_PATH) {
         link.classList.add('is-active');
@@ -214,7 +209,7 @@ if (tree) {
           (data.results || []).forEach(function (res) {
             const li = document.createElement('li');
             const a = document.createElement('a');
-            a.href = res.url;
+            a.href = encodePath(res.url);
             a.textContent = res.name;
             li.appendChild(a);
             tree.appendChild(li);
