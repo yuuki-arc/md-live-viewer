@@ -44,3 +44,19 @@ test('MLV_HOST で LAN に公開しているときは Host を問わない（Ori
   assert.equal(isAllowedRequest({ host: 'mymac.local:7777', origin: 'http://mymac.local:7777' }, '0.0.0.0'), true);
   assert.equal(isAllowedRequest({ host: 'mymac.local:7777', origin: 'http://evil.example' }, '0.0.0.0'), false);
 });
+
+test('ループバックの別表記で待ち受けていても Host を検証する', () => {
+  for (const bind of ['127.0.0.2', 'LOCALHOST', '::ffff:127.0.0.1', '0:0:0:0:0:0:0:1', '[::1]']) {
+    assert.equal(isAllowedRequest({ host: 'evil.example:7777' }, bind), false, bind);
+  }
+});
+
+test('Origin はスキームと既定ポートの表記揺れも考慮して比較する', () => {
+  assert.equal(isAllowedRequest({ host: '127.0.0.1:7777', origin: 'https://127.0.0.1:7777' }, LOOP), false);
+  assert.equal(isAllowedRequest({ host: 'localhost:80', origin: 'http://localhost' }, LOOP), true);
+  assert.equal(isAllowedRequest({ host: 'localhost', origin: 'http://localhost:80' }, LOOP), true);
+});
+
+test('角括弧付きの IPv6 待受アドレスを二重に囲まない', () => {
+  assert.equal(formatServerUrl('[::1]', 7777), 'http://[::1]:7777/');
+});
