@@ -13,5 +13,10 @@
     }
   ],
   "excludedDirs": [".git"],
-  "excludedFiles": []
+  "excludedFiles": [],
+  "rich": {
+    "generator": {
+      "type": "claude"
+    }
+  }
 }

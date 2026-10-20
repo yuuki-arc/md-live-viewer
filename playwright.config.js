@@ -1,12 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, rmSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const VAULT = join(__dirname, 'e2e', 'fixtures', 'vault');
 const GENERATED_CONFIG = join(__dirname, 'e2e', 'fixtures', '.config.generated.json');
+const RICH_CACHE = join(__dirname, 'e2e', 'fixtures', '.rich-cache');
 const PORT = 7778;
+
+// 前回の生成物が残っていると「未生成」の状態から検証できないため毎回消す
+rmSync(RICH_CACHE, { recursive: true, force: true });
 
 // vault の絶対パスはマシン依存なので、フィクスチャ vault を指す config を
 // テスト実行のたびに生成し、MLV_CONFIG でサーバに注入する。
@@ -18,6 +22,15 @@ writeFileSync(
       vaults: [{ slug: 'fixture', label: 'Fixture', path: VAULT }],
       excludedDirs: ['.git'],
       excludedFiles: [],
+      // claude CLI を呼ばないよう、固定の HTML を返す偽の生成器に差し替える
+      rich: {
+        cacheDir: RICH_CACHE,
+        generator: {
+          type: 'command',
+          command: process.execPath,
+          args: [join(__dirname, 'e2e', 'fixtures', 'fake-generator.js')],
+        },
+      },
     },
     null,
     2,
