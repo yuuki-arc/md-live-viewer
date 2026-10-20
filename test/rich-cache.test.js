@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createRichStore, hashSource } from '../lib/rich-cache.js';
@@ -49,7 +49,7 @@ test('ファイル名はハッシュなので、パスに ../ や日本語を含
     store.write('../x', '/../メモ/', { html: 'x', meta });
     assert.deepEqual(readdirSync(dir), ['cache']);
     for (const name of readdirSync(path.join(dir, 'cache'))) {
-      assert.match(name, /^[0-9a-f]{64}\.(html|json)$/);
+      assert.match(name, /^[0-9a-f]{64}\.json$/);
     }
   });
 });
@@ -60,6 +60,22 @@ test('上書きすると新しい内容に置き換わり、一時ファイル�
     store.write('notes', '/a/', { html: 'new', meta: { url: '/a/', sourceHash: '2', generatedAt: 't', generator: 'g' } });
     assert.equal(store.read('notes', '/a/').html, 'new');
     assert.equal(store.read('notes', '/a/').meta.sourceHash, '2');
-    assert.equal(readdirSync(path.join(dir, 'cache')).length, 2);
+    assert.equal(readdirSync(path.join(dir, 'cache')).length, 1);
+  });
+});
+
+test('HTML とメタ情報は 1 ファイルにまとめ、読み出しで新旧が混ざらない', () => {
+  withStore((store, dir) => {
+    store.write('notes', '/a/', { html: 'A', meta: { url: '/a/', sourceHash: 'h', generatedAt: 't', generator: 'g' } });
+    assert.equal(readdirSync(path.join(dir, 'cache')).length, 1);
+  });
+});
+
+test('HTML を含まない旧形式（メタ情報だけ）のファイルは未生成として扱う', () => {
+  withStore((store, dir) => {
+    store.write('notes', '/a/', { html: 'A', meta: { url: '/a/', sourceHash: 'h', generatedAt: 't', generator: 'g' } });
+    const [name] = readdirSync(path.join(dir, 'cache'));
+    writeFileSync(path.join(dir, 'cache', name), JSON.stringify({ url: '/a/', sourceHash: 'h' }));
+    assert.equal(store.read('notes', '/a/'), null);
   });
 });
