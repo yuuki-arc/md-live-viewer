@@ -56,3 +56,10 @@ test('viewPicker は生挿入され、未指定ならプレースホルダが空
   assert.doesNotMatch(html, /\{\{\s*viewPicker\s*\}\}/);
   assert.doesNotMatch(html, /class="view-picker"/);
 });
+
+test('wrap は SSE の取りこぼしの起点になる今の id を meta に埋め込む', () => {
+  const html = wrap({ title: 't', content: '', liveId: 'abcd-12' });
+  assert.match(html, /<meta name="mlv-live-id" content="abcd-12" \/>/);
+  // 値はエスケープする
+  assert.match(wrap({ title: 't', content: '', liveId: '"><x' }), /content="&quot;&gt;&lt;x"/);
+});

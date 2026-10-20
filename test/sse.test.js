@@ -1,6 +1,6 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { addClient, broadcast, missedSince, helloChunk, BOOT_ID } from '../lib/sse.js';
+import { addClient, broadcast, missedSince, helloChunk, lastIdOf, currentId, BOOT_ID } from '../lib/sse.js';
 import { state } from '../lib/state.js';
 
 function collect() {
@@ -59,4 +59,18 @@ test('接続時の hello は今の位置を id で知らせ、その id から�
   assert.deepEqual(missedSince(idOf(hello)), []);
   broadcast('reload', { scope: '/b/' });
   assert.equal(missedSince(idOf(hello)).length, 1);
+});
+
+test('自動再接続の Last-Event-ID ヘッダは、URL に残った古い ?since= より優先する', () => {
+  // EventSource は自動再接続でも最初の URL（?since= 付き）を使い、最新の id はヘッダで送る
+  assert.equal(lastIdOf({ since: 'b-5', header: 'b-20' }), 'b-20');
+  assert.equal(lastIdOf({ since: 'b-5', header: undefined }), 'b-5');
+  assert.equal(lastIdOf({ since: undefined, header: undefined }), '');
+});
+
+test('currentId は hello と同じ今の位置を返し、そこからの取りこぼしは無い', () => {
+  collect();
+  broadcast('reload', { scope: '/a/' });
+  assert.equal(currentId(), idOf(helloChunk()));
+  assert.deepEqual(missedSince(currentId()), []);
 });

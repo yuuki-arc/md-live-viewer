@@ -14,7 +14,8 @@ const DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'vault', '
 // サーバは SSE クライアント登録後に最初の書き込みを行うため、レスポンス受信 = 登録済み。
 // これを待たずにファイルを書き換えると reload イベントを取りこぼす
 async function gotoAndWaitLive(page, url) {
-  const connected = page.waitForResponse((r) => r.url().endsWith('/api/live'));
+  // 最初の接続から ?since= が付くので、パスで判定する
+  const connected = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/live');
   await page.goto(url);
   await connected;
 }
@@ -54,19 +55,22 @@ test('ファイルを追加すると開いているページがリロードさ�
 // 1 ページで何本も開くと数タブで使い切り、ツリー取得などが待たされてサイドバーが空のまま止まる
 test('SSE は 1 ページにつき 1 本だけ開き、タブを 3 つ開いてもサイドバーが表示される', async ({ context }) => {
   const pages = [];
-  let liveRequests = 0;
-  context.on('request', (req) => {
-    if (new URL(req.url()).pathname === '/api/live') liveRequests++;
-  });
+  const counts = new Map();
   for (let i = 0; i < 3; i++) {
     const page = await context.newPage();
+    // 直前のテストのファイル削除の通知を ?since= で受け取って読み込み直すことがあるので、
+    // 合計ではなく、ページを読み込むたびに数え直して 1 本ずつであることを確かめる
+    page.on('framenavigated', (f) => { if (f === page.mainFrame()) counts.set(page, 0); });
+    page.on('request', (req) => {
+      if (new URL(req.url()).pathname === '/api/live') counts.set(page, (counts.get(page) || 0) + 1);
+    });
     await page.goto('/a/b/c/');
     pages.push(page);
   }
   for (const page of pages) {
     await expect(page.locator('#sidebar-tree a').first()).toBeVisible({ timeout: 5_000 });
+    await expect.poll(() => counts.get(page)).toBe(1);
   }
-  expect(liveRequests).toBe(3);
 });
 
 // Playwright のページはどれも表示中として扱われるので、visibilityState を差し替えて
@@ -122,4 +126,14 @@ test('タブを 8 つ開いても、裏のタブは接続を持たないので�
     pages.push(page);
   }
   for (const page of pages) await expect.poll(() => liveState(page)).toBe(2);
+});
+
+// HTML に埋め込んだ id を最初の位置にするので、ページを返してから SSE がつながるまでの変更や、
+// 裏で開いて表示する前の変更も取りこぼさない
+test('最初の SSE 接続から、ページに埋め込んだ id を since で渡す', async ({ page }) => {
+  const live = page.waitForRequest((r) => new URL(r.url()).pathname === '/api/live');
+  await page.goto('/a/b/c/');
+  const since = new URL((await live).url()).searchParams.get('since');
+  expect(since).toBe(await page.locator('meta[name="mlv-live-id"]').getAttribute('content'));
+  expect(since).toMatch(/^[0-9a-f]+-\d+$/);
 });

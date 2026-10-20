@@ -10,11 +10,22 @@ import { pageKey } from './url-path.js';
 // つなぎ直しても同じリスナーが働くよう、EventSource そのものではなく薄い包みを渡す
 const listeners = [];
 let source = null;
-let lastEventId = '';
+// サーバがページを返したときの位置（lib/sse.js の currentId）。最初の接続からこれを ?since= で渡すので、
+// ページを返してから SSE がつながるまでの変更や、裏で開いて表示する前の変更も取りこぼさない
+let lastEventId = document.querySelector('meta[name="mlv-live-id"]')?.content || '';
+
+// サーバ（lib/sse.js の broadcast / helloChunk）が送るイベントの型。最後に受け取った id は、
+// ページがリスナーを登録しているかどうかに関係なく、この全型で記録する。型を増やしたらここにも足す
+const EVENT_TYPES = ['hello', 'reload', 'rich'];
+
+function recordId(e) {
+  if (e.lastEventId) lastEventId = e.lastEventId;
+}
 
 function connect() {
   const since = lastEventId ? '?since=' + encodeURIComponent(lastEventId) : '';
   source = new EventSource('/api/live' + since);
+  for (const type of EVENT_TYPES) source.addEventListener(type, recordId);
   for (const [type, fn] of listeners) source.addEventListener(type, fn);
 }
 
@@ -26,6 +37,8 @@ function disconnect() {
 // 表示中なら接続し、裏に回っていれば閉じる
 function sync() {
   if (document.visibilityState === 'visible') {
+    // HTTP エラーなどで EventSource が自動再接続をあきらめた（CLOSED）ときも、表に戻ったらつなぎ直す
+    if (source && source.readyState === EventSource.CLOSED) disconnect();
     if (!source) connect();
   } else {
     disconnect();
@@ -35,12 +48,8 @@ function sync() {
 export const liveEvents = window.EventSource
   ? {
       addEventListener(type, fn) {
-        const listener = (e) => {
-          if (e.lastEventId) lastEventId = e.lastEventId;
-          fn(e);
-        };
-        listeners.push([type, listener]);
-        if (source) source.addEventListener(type, listener);
+        listeners.push([type, fn]);
+        if (source) source.addEventListener(type, fn);
       },
       get readyState() {
         return source ? source.readyState : EventSource.CLOSED;
@@ -56,9 +65,6 @@ if (liveEvents) {
   window.addEventListener('pageshow', function (e) {
     if (e.persisted) sync();
   });
-
-  // 接続のたびにサーバが今の位置（id）を知らせる。記録だけして、取りこぼしの起点にする
-  liveEvents.addEventListener('hello', function () {});
 
   liveEvents.addEventListener('reload', function (e) {
     try {

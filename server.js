@@ -12,7 +12,7 @@ import * as treeLib from './lib/tree.js';
 import * as searchLib from './lib/search.js';
 import { render } from './lib/render.js';
 import { wrap } from './lib/template.js';
-import { addClient, broadcast, missedSince, helloChunk } from './lib/sse.js';
+import { addClient, broadcast, missedSince, helloChunk, lastIdOf, currentId } from './lib/sse.js';
 import { rawPathToUrl, toRawHref } from './lib/raw.js';
 import { escapeHtml } from './lib/escape.js';
 import { encodePath, decodePath } from './assets/js/url-path.js';
@@ -350,9 +350,10 @@ app.get('/api/live', (c) => {
     };
     const remove = addClient(client);
     // 裏に回って閉じていたタブがつなぎ直したとき、閉じている間のイベントを送り直す（?since= は
-    // assets/js/live.js が付ける。EventSource の自動再接続では Last-Event-ID ヘッダで届く）。
+    // assets/js/live.js が付ける。EventSource の自動再接続では Last-Event-ID ヘッダで届き、そちらを優先する）。
     // 登録と同じ同期処理の中で求めるので、送り直しと新しいイベントの間に抜けも重複もない
-    const missed = [...missedSince(c.req.query('since') || c.req.header('last-event-id')), helloChunk()];
+    const lastId = lastIdOf({ since: c.req.query('since'), header: c.req.header('last-event-id') });
+    const missed = [...missedSince(lastId), helloChunk()];
     stream.onAbort(() => {
       closed = true;
       remove();
@@ -382,6 +383,7 @@ app.get('/', (c) => {
       title: 'Welcome',
       content: renderWelcomeBody(),
       source: '',
+      liveId: currentId(),
     });
     return c.html(html);
   }
@@ -389,6 +391,7 @@ app.get('/', (c) => {
     title: state.currentSlug || 'Index',
     content: renderIndexBody(),
     source: state.currentSlug,
+    liveId: currentId(),
   });
   return c.html(html);
 });
@@ -406,6 +409,7 @@ app.get('*', (c) => {
     title,
     content: html,
     source: state.currentSlug,
+    liveId: currentId(),
     rawLink: `<a class="raw-link" href="${toRawHref(url)}">Raw</a>`,
     viewPicker: VIEW_PICKER,
   });
