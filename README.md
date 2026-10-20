@@ -9,6 +9,7 @@
 - **lazy サイドバー**: 10k ページ規模を想定したディレクトリツリーの遅延展開。表示中ページの祖先ディレクトリは自動展開・ハイライト
 - **テーマ切替**: 5 種のカラーテーマ（localStorage 保存）
 - **生 Markdown モード**: `/_raw/<ページパス>/` でファイルの中身をそのまま `text/plain` 配信（JS・CSS を一切読み込まない）
+- **Rich 表示**: ページ上部の切替で Markdown / Rich を選べる。Rich はローカルの `claude` CLI などで生成したリッチ HTML を表示する（API キー不要。詳細は「[Rich 表示](#rich-表示)」）
 
 Eleventy 静的ビルド方式の姉妹プロジェクト `wiki-viewer/` とは独立。
 
@@ -43,6 +44,36 @@ npm run dev
 
 起動後、footer の Source select に追加分が現れる。切替時はインメモリ状態のみ更新され、再スキャン後に自動リロード。
 
+## Rich 表示
+
+各ページ上部の **Markdown / Rich** 切替で表示モードを選ぶ（選択は localStorage に保存）。Rich では、Markdown を LLM でリッチな HTML に変換したものを表示する。
+
+- **生成は手動**: Rich 表示で「生成する」を押したページだけ生成する。Markdown を編集すると「元の Markdown が更新されています」と出るので、必要なら「再生成」する（保存のたびに自動生成はしない）
+- **API キー・従量課金なし**: 既定ではローカルの `claude` CLI（`claude -p`）を子プロセスで呼び、ログイン中の Claude サブスクリプションの利用枠で生成する。`ANTHROPIC_API_KEY` は子プロセスに渡さない。ツールなし・ユーザー設定 / MCP なしで実行するため、ファイル操作やコマンド実行はさせない
+- **キャッシュ**: 生成物は md-live-viewer 側の `.cache/rich/`（git 管理外）に置き、vault には書き込まない
+- **隔離**: 生成 HTML は `sandbox`（`allow-same-origin` なし）の iframe と CSP で表示し、ビューアの API や外部ネットワークに触れさせない。外部リソースを読まない自己完結 HTML を生成させる
+- 生成は 1 件ずつ順番に実行する。1 ページあたり数十秒〜数分かかる
+
+生成器は `config.json` の `rich` で切り替える（省略時は `claude`）:
+
+```json
+{
+  "rich": {
+    "generator": { "type": "claude", "model": "sonnet" },
+    "cacheDir": ".cache/rich",
+    "timeoutMs": 600000
+  }
+}
+```
+
+| `generator.type` | 設定項目 | 動作 |
+|---|---|---|
+| `claude`（既定） | `command`（既定 `claude`）、`model`（任意） | `claude -p` を呼ぶ |
+| `ollama` | `model`（必須）、`url`（既定 `http://127.0.0.1:11434`） | Ollama の `/api/generate` を呼ぶ |
+| `command` | `command`（必須）、`args` | 任意のコマンドを起動し、stdin にプロンプト、stdout から HTML を受け取る（例: `ollama run <model>`） |
+
+設定が不正な場合も Markdown 表示はそのまま使え、Rich 表示に理由を表示する。
+
 ## アーキテクチャ
 
 ```
@@ -53,6 +84,7 @@ Browser ──HTTP/SSE──> Hono (server.js, :7777)
                         ├─ render  ── markdown-it + wikilinks + callouts + mermaid fence + gray-matter
                         ├─ tree    ── lazy subtree API
                         ├─ search  ── MiniSearch (fuzzy + prefix)
+                        ├─ rich    ── claude CLI / Ollama / command → .cache/rich
                         └─ sse     ── reload bus
 ```
 
@@ -60,6 +92,7 @@ Browser ──HTTP/SSE──> Hono (server.js, :7777)
 - **生 Markdown**: `GET /_raw/:path/` → 同じく state.index から filePath 解決 → 無加工のまま `text/plain` で返す。HTML テンプレートを通さないため、この URL ではクライアント JS が一切走らない（レンダリング済みページの footer の Raw リンクから辿れる）
 - **サイドバー**: 初期 shell のみ、`<details>` 展開時に `/api/tree?path=...` で子を取得
 - **ファイル変更**: chokidar → index 更新 → LRU invalidate → SSE `reload`
+- **Rich 表示**: `POST /api/rich/generate` → 生成ジョブ（1 件ずつ）→ キャッシュに保存 → SSE `rich` → `GET /_rich/:path/` を sandbox iframe で表示
 - **vault 切替**: `POST /api/switch {slug}` → watcher stop → state reset → 新 vault walk → SSE `reload` ブロードキャスト
 
 ## ディレクトリ構成
@@ -78,6 +111,11 @@ md-live-viewer/
 │   ├── template.js         # {{title}} / {{source}} / {{rawLink}} / {{content}} 置換
 │   ├── escape.js           # HTML エスケープ
 │   ├── host.js             # 待受アドレスの決定、Host / Origin の検証
+│   ├── rich-config.js      # config.json の rich セクションの正規化
+│   ├── rich-generator.js   # Markdown → リッチ HTML の生成器（claude / ollama / command）
+│   ├── rich-cache.js       # 生成物のキャッシュ（.cache/rich）
+│   ├── rich-jobs.js        # 生成ジョブの状態管理と直列実行
+│   ├── rich-page.js        # /_rich/ の URL 変換・CSP・高さ通知スクリプト
 │   └── serial.js           # 非同期処理の直列化（vault 切替用）
 ├── _includes/
 │   └── base.html           # HTML テンプレート
@@ -92,6 +130,7 @@ md-live-viewer/
 │       ├── slug.js         # 見出し ID の生成（toc.js と wikilink で共有）
 │       ├── menu-toggle.js  # モバイルのサイドバー開閉
 │       ├── vault.js        # Source 切替
+│       ├── rich-view.js    # Markdown / Rich の表示切替と生成操作
 │       └── mermaid-init.js # Mermaid 図の描画
 ├── test/                   # ユニットテスト（node --test）
 ├── e2e/                    # Playwright E2E（fixtures/vault/ がテスト用 vault）
@@ -128,11 +167,14 @@ md-live-viewer/
 | GET | `/assets/**` | CSS/JS 静的配信 |
 | GET | `/_attachments/**` | currentVault の添付ファイル |
 | GET | `/_raw/:path/` | 生 Markdown を `text/plain` で返す（レンダリング・JS なし） |
+| GET | `/_rich/:path/` | 生成済みのリッチ HTML（sandbox CSP 付き）。未生成なら 404 |
+| GET | `/api/rich?path=` | Rich 表示の状態（生成済みか・古いか・ジョブの状態） |
+| POST | `/api/rich/generate` | body `{path}` で生成を依頼（202） |
 | GET | `/api/tree?path=` | サブツリー JSON |
 | GET | `/api/search?q=` | ファイル名・パスの fuzzy / prefix 検索 (MiniSearch) |
 | GET | `/api/vaults` | 設定済み vault 一覧 |
 | POST | `/api/switch` | body `{slug}` で切替 |
-| GET | `/api/live` | SSE、`reload` イベント受信 |
+| GET | `/api/live` | SSE、`reload` / `rich` イベント受信 |
 
 ## テスト
 
@@ -142,7 +184,7 @@ md-live-viewer/
 npm test
 ```
 
-E2E は Playwright（`@playwright/test`、dev 依存）。`e2e/fixtures/vault/` を指す一時 config を生成してサーバを起動し、ヘッドレス Chromium でサイドバーの祖先自動展開などを検証する。
+E2E は Playwright（`@playwright/test`、dev 依存）。`e2e/fixtures/vault/` を指す一時 config を生成してサーバを起動し、ヘッドレス Chromium でサイドバーの祖先自動展開などを検証する。Rich 表示の生成器は `e2e/fixtures/fake-generator.js` に差し替えるため、E2E で claude CLI は呼ばない。
 
 ```bash
 npx playwright install chromium   # 初回のみ
