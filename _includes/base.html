@@ -19,6 +19,14 @@
         var el = document.getElementById('theme-css');
         if (el) el.href = '/assets/css/' + t + '.css';
       })();
+      // Rich モードでは Markdown 本文が一瞬見えてから差し替わらないよう、描画前に class を付ける
+      (function () {
+        try {
+          if (localStorage.getItem('md-live-viewer-view') === 'rich') {
+            document.documentElement.classList.add('view-rich');
+          }
+        } catch (_) {}
+      })();
     </script>
   </head>
   <body>
@@ -42,6 +50,7 @@
       </aside>
 
       <main class="prose">
+        {{viewPicker}}
         {{content}}
       </main>
     </div>
@@ -94,6 +103,7 @@
     <script type="module" src="/assets/js/toc.js"></script>
     <script type="module" src="/assets/js/live.js"></script>
     <script type="module" src="/assets/js/mermaid-init.js"></script>
+    <script type="module" src="/assets/js/rich-view.js"></script>
     <script src="/assets/js/vault.js"></script>
   </body>
 </html>

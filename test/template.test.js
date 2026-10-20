@@ -47,3 +47,12 @@ test('title 中の $ メタ文字も化けない', () => {
   assert.ok(html.includes("a $' b"), 'title がそのまま埋め込まれる');
   assert.doesNotMatch(html, /\{\{\s*title\s*\}\}/);
 });
+
+test('viewPicker は生挿入され、未指定ならプレースホルダが空になる', () => {
+  const picker = '<div class="view-picker"></div>';
+  assert.ok(wrap({ title: 't', content: '', source: 's', viewPicker: picker }).includes(picker));
+
+  const html = wrap({ title: 't', content: '', source: 's' });
+  assert.doesNotMatch(html, /\{\{\s*viewPicker\s*\}\}/);
+  assert.doesNotMatch(html, /class="view-picker"/);
+});

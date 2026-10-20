@@ -18,6 +18,12 @@ import { escapeHtml } from './lib/escape.js';
 import { encodePath, decodePath } from './assets/js/url-path.js';
 import { resolveBindHost, formatServerUrl, isAllowedRequest } from './lib/host.js';
 import { createSerialQueue } from './lib/serial.js';
+import { resolveRichConfig } from './lib/rich-config.js';
+import { createRichStore, hashSource } from './lib/rich-cache.js';
+import { createRichJobs } from './lib/rich-jobs.js';
+import { createGenerator } from './lib/rich-generator.js';
+import { richPathToUrl, decorateRichHtml, RICH_CSP } from './lib/rich-page.js';
+import { loadThemes } from './lib/rich-theme.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -63,6 +69,7 @@ function loadConfig() {
   state.excludedFiles = new Set(
     Array.isArray(cfg.excludedFiles) ? cfg.excludedFiles : []
   );
+  loadRich(cfg.rich);
   if (state.vaults.length === 0) {
     console.warn('[md-live-viewer] config.json has no vaults');
     return false;
@@ -72,6 +79,62 @@ function loadConfig() {
   state.currentVault = current.path;
   return true;
 }
+
+// リッチ HTML 表示（Rich モード）。設定が不正でも Markdown 表示は使えるよう、
+// 起動は止めずに理由を保持して /api/rich で返す
+const rich = { store: null, generator: null, error: null };
+const richJobs = createRichJobs({
+  onSettled: (key, status) => {
+    const [, url] = key.split('\0');
+    broadcast('rich', { scope: url, ...status });
+  },
+});
+
+function loadRich(raw) {
+  try {
+    const cfg = resolveRichConfig(raw, ROOT);
+    rich.store = createRichStore(cfg.cacheDir);
+    rich.generator = createGenerator(cfg.generator, { timeoutMs: cfg.timeoutMs });
+    rich.error = null;
+  } catch (err) {
+    rich.store = null;
+    rich.generator = null;
+    rich.error = err.message;
+    console.warn(`[md-live-viewer] rich view disabled: ${err.message}`);
+  }
+}
+
+function richKey(url) {
+  return `${state.currentSlug}\0${url}`;
+}
+
+function richStatus(url, entry) {
+  if (!rich.store) return { available: false, error: rich.error };
+  const cached = rich.store.read(state.currentSlug, url);
+  let stale = false;
+  if (cached) {
+    try {
+      stale = hashSource(readFileSync(entry.filePath, 'utf8')) !== cached.meta.sourceHash;
+    } catch {
+      stale = false;
+    }
+  }
+  return {
+    available: true,
+    generator: rich.generator.name,
+    exists: Boolean(cached),
+    stale,
+    generatedAt: cached?.meta.generatedAt ?? null,
+    generatedBy: cached?.meta.generator ?? null,
+    job: richJobs.status(richKey(url)),
+  };
+}
+
+// ページを返すルートだけが渡す、Markdown / Rich の表示切替（assets/js/rich-view.js が操作する）
+const VIEW_PICKER = `<div class="view-picker" role="group" aria-label="表示モード">
+  <button type="button" data-view="md" aria-pressed="true">Markdown</button>
+  <button type="button" data-view="rich" aria-pressed="false">Rich</button>
+</div>`;
 
 function renderIndexBody() {
   const children = treeLib.getChildren('').children;
@@ -169,6 +232,65 @@ app.get('/_raw/*', (c) => {
   } catch {
     return c.notFound();
   }
+});
+
+// 生成済みのリッチ HTML。sandbox の CSP で隔離して返す（lib/rich-page.js 参照）。
+// /_raw/ と同じく state.index に載ったページしか引けない
+const RICH_THEMES = loadThemes(path.join(ROOT, 'assets', 'css'));
+
+app.get('/_rich/*', (c) => {
+  const reqPath = requestPath(c);
+  const url = reqPath === null ? null : richPathToUrl(reqPath);
+  if (!url || !state.index.has(url) || !rich.store) return c.notFound();
+  const cached = rich.store.read(state.currentSlug, url);
+  if (!cached) return c.notFound();
+  // ?theme= はビューアで選んでいるテーマ（assets/js/rich-view.js が付ける）。知らない名前は無視する
+  const themeCss = RICH_THEMES.get(c.req.query('theme') || '');
+  return c.html(decorateRichHtml(cached.html, { themeCss }), 200, {
+    'Content-Security-Policy': RICH_CSP,
+    'X-Content-Type-Options': 'nosniff',
+    'Cache-Control': 'no-store',
+  });
+});
+
+app.get('/api/rich', (c) => {
+  const url = c.req.query('path') || '';
+  const entry = state.index.get(url);
+  if (!entry) return c.json({ error: 'not found' }, 404);
+  return c.json(richStatus(url, entry));
+});
+
+app.post('/api/rich/generate', async (c) => {
+  let body;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid json' }, 400);
+  }
+  const url = body?.path;
+  const entry = state.index.get(url);
+  if (!entry) return c.json({ error: 'not found' }, 404);
+  if (!rich.store) return c.json({ error: rich.error }, 503);
+
+  // 実行時点の vault を固定する。生成中に vault が切り替わっても元の vault のキャッシュに書く
+  const slug = state.currentSlug;
+  const { store, generator } = rich;
+  richJobs.request(richKey(url), async () => {
+    // 生成前の内容のハッシュを記録する。生成中に編集されたら、生成後すぐ「古い」と分かる
+    const markdown = readFileSync(entry.filePath, 'utf8');
+    const title = render(entry.filePath)?.title ?? url;
+    const html = await generator.generate({ markdown, title });
+    store.write(slug, url, {
+      html,
+      meta: {
+        url,
+        sourceHash: hashSource(markdown),
+        generatedAt: new Date().toISOString(),
+        generator: generator.name,
+      },
+    });
+  });
+  return c.json(richStatus(url, entry), 202);
 });
 
 app.get('/api/vaults', (c) => {
@@ -280,6 +402,7 @@ app.get('*', (c) => {
     content: html,
     source: state.currentSlug,
     rawLink: `<a class="raw-link" href="${toRawHref(url)}">Raw</a>`,
+    viewPicker: VIEW_PICKER,
   });
   return c.html(wrapped);
 });

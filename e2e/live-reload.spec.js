@@ -49,3 +49,22 @@ test('ファイルを追加すると開いているページがリロードさ�
     rmSync(file, { force: true });
   }
 });
+
+// ブラウザは同じホストへの HTTP/1.1 接続を 6 本までに制限する。SSE は接続を張りっぱなしにするので、
+// 1 ページで何本も開くと数タブで使い切り、ツリー取得などが待たされてサイドバーが空のまま止まる
+test('SSE は 1 ページにつき 1 本だけ開き、タブを 3 つ開いてもサイドバーが表示される', async ({ context }) => {
+  const pages = [];
+  let liveRequests = 0;
+  context.on('request', (req) => {
+    if (new URL(req.url()).pathname === '/api/live') liveRequests++;
+  });
+  for (let i = 0; i < 3; i++) {
+    const page = await context.newPage();
+    await page.goto('/a/b/c/');
+    pages.push(page);
+  }
+  for (const page of pages) {
+    await expect(page.locator('#sidebar-tree a').first()).toBeVisible({ timeout: 5_000 });
+  }
+  expect(liveRequests).toBe(3);
+});
