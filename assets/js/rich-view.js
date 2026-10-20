@@ -36,6 +36,21 @@ function formatDate(iso) {
 let section = null;
 let iframe = null;
 let shownVersion = null;
+// 状態の取得（SSE の open / rich、生成の POST）が重なっても、最後に出したものだけを描画する。
+// 古い応答が後から届いて「生成中…」に戻り、そのまま止まるのを防ぐ
+let statusSeq = 0;
+
+async function loadStatus(request, fallback) {
+  const seq = ++statusSeq;
+  const target = section;
+  let s;
+  try {
+    s = await request();
+  } catch (err) {
+    s = fallback(err);
+  }
+  if (seq === statusSeq && target === section) renderStatus(s);
+}
 
 async function fetchStatus() {
   const r = await fetch('/api/rich?path=' + encodeURIComponent(url));
@@ -58,11 +73,7 @@ function generateButton(label) {
   const btn = el('button', { type: 'button', class: 'rich-generate' }, label);
   btn.addEventListener('click', async () => {
     btn.disabled = true;
-    try {
-      renderStatus(await requestGenerate());
-    } catch (err) {
-      renderStatus({ available: true, exists: false, job: { state: 'error', error: err.message } });
-    }
+    await loadStatus(requestGenerate, (err) => ({ available: true, exists: false, job: { state: 'error', error: err.message } }));
   });
   return btn;
 }
@@ -115,12 +126,8 @@ function renderStatus(s) {
   }
 }
 
-async function refresh() {
-  try {
-    renderStatus(await fetchStatus());
-  } catch (err) {
-    renderStatus({ available: false, error: err.message });
-  }
+function refresh() {
+  return loadStatus(fetchStatus, (err) => ({ available: false, error: err.message }));
 }
 
 function showRich() {
@@ -168,6 +175,10 @@ if (picker && main && url) {
   // 生成の完了・失敗はサーバから SSE で届く
   if (window.EventSource) {
     const es = new EventSource('/api/live');
+    // 切断中（サーバ再起動・スリープなど）に届かなかった完了通知を取りこぼさないよう、接続のたびに状態を取り直す
+    es.addEventListener('open', () => {
+      if (section) refresh();
+    });
     es.addEventListener('rich', (e) => {
       try {
         if (JSON.parse(e.data || '{}').scope === url && section) refresh();

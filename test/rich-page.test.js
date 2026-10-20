@@ -19,6 +19,9 @@ test('CSP は sandbox（allow-same-origin なし）で外部への通信を禁�
   assert.doesNotMatch(RICH_CSP, /allow-same-origin/);
   assert.match(RICH_CSP, /default-src 'none'/);
   assert.match(RICH_CSP, /connect-src 'none'/);
+  // フォーム送信や <base> の差し替えで外部へ送らせない
+  assert.match(RICH_CSP, /form-action 'none'/);
+  assert.match(RICH_CSP, /base-uri 'none'/);
 });
 
 test('decorateRichHtml は </body> の直前に高さ通知スクリプトと高さ指定の打ち消しを差し込む', () => {
