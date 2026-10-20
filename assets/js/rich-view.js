@@ -159,7 +159,10 @@ if (picker && main && url) {
   window.addEventListener('message', (e) => {
     if (!iframe || e.source !== iframe.contentWindow) return;
     const h = Number(e.data?.height);
-    if (e.data?.type === 'mlv-rich-height' && h > 0) iframe.style.height = Math.ceil(h) + 'px';
+    if (e.data?.type !== 'mlv-rich-height' || !(h > 0)) return;
+    // box-sizing: border-box なので枠線の分を足さないと、iframe 内に数 px の縦スクロールが出る
+    const border = iframe.offsetHeight - iframe.clientHeight;
+    iframe.style.height = Math.ceil(h) + border + 'px';
   });
 
   // 生成の完了・失敗はサーバから SSE で届く

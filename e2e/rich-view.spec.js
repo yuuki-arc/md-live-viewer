@@ -32,6 +32,11 @@ test('Rich に切り替えて生成すると iframe に生成 HTML が表示さ�
   await expect.poll(async () => (await page.locator('.rich-view iframe').boundingBox()).height).toBeGreaterThan(1000);
   // iframe は固有幅しか持たないので、本文の列幅いっぱいに広がっていること（細く縮まない）
   expect((await page.locator('.rich-view iframe').boundingBox()).width).toBeGreaterThan(700);
+  // iframe の枠線の分まで含めて伸ばし、iframe 内に縦スクロールバーを出さない
+  const richFrame = page.frames().find((f) => f.url().includes('/_rich/'));
+  await expect
+    .poll(() => richFrame.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight))
+    .toBeLessThanOrEqual(0);
 
   await page.reload();
   await expect(page.locator('.view-picker button[data-view="rich"]')).toHaveAttribute('aria-pressed', 'true');
