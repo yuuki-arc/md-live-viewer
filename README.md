@@ -186,7 +186,7 @@ md-live-viewer/
 npm test
 ```
 
-E2E は Playwright（`@playwright/test`、dev 依存）。`e2e/fixtures/vault/` を指す一時 config を生成してサーバを起動し、ヘッドレス Chromium でサイドバーの祖先自動展開などを検証する。Rich 表示の生成器は `e2e/fixtures/fake-generator.js` に差し替えるため、E2E で claude CLI は呼ばない。
+E2E は Playwright（`@playwright/test`、dev 依存）。`e2e/fixtures/vault/` を指す一時 config を生成してサーバを起動し、ヘッドレス Chromium でサイドバーの祖先自動展開などを検証する。Rich 表示の生成器は `e2e/fixtures/fake-generator.js` に差し替えるため、E2E で claude CLI は呼ばない。`e2e/bfcache.spec.js` だけは、同梱の Chromium が back-forward cache を使わないため、インストール済みの Google Chrome（`channel: 'chrome'`）で bfcache を有効にして実行する。
 
 ```bash
 npx playwright install chromium   # 初回のみ

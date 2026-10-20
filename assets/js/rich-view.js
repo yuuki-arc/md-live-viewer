@@ -1,6 +1,7 @@
 // Markdown / Rich の表示切替。Rich ではサーバが生成したリッチ HTML（/_rich/）を
 // sandbox の iframe で表示し、未生成・古い場合は生成ボタンを出す。選択は localStorage に保存する
 import { pageKey } from './url-path.js';
+import { liveEvents } from './live.js';
 
 const KEY = 'md-live-viewer-view';
 const picker = document.querySelector('.view-picker');
@@ -190,8 +191,8 @@ if (picker && main && url) {
   if (themeLink) new MutationObserver(loadFrame).observe(themeLink, { attributes: true, attributeFilter: ['href'] });
 
   // 生成の完了・失敗はサーバから SSE で届く
-  if (window.EventSource) {
-    const es = new EventSource('/api/live');
+  if (liveEvents) {
+    const es = liveEvents;
     // 切断中（サーバ再起動・スリープなど）に届かなかった完了通知を取りこぼさないよう、接続のたびに状態を取り直す
     es.addEventListener('open', () => {
       if (section) refresh();
