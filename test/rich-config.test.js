@@ -5,12 +5,12 @@ import { resolveRichConfig, DEFAULT_TIMEOUT_MS } from '../lib/rich-config.js';
 
 const ROOT = '/srv/mlv';
 
-test('未指定なら claude CLI・ROOT/.cache/rich・既定タイムアウトになる', () => {
+test('未指定なら claude CLI（sonnet）・ROOT/.cache/rich・既定タイムアウトになる', () => {
   const cfg = resolveRichConfig(undefined, ROOT);
   assert.deepEqual(cfg, {
     cacheDir: path.join(ROOT, '.cache', 'rich'),
     timeoutMs: DEFAULT_TIMEOUT_MS,
-    generator: { type: 'claude', command: 'claude', model: null },
+    generator: { type: 'claude', command: 'claude', model: 'sonnet' },
   });
 });
 

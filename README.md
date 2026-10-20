@@ -68,7 +68,7 @@ npm run dev
 
 | `generator.type` | 設定項目 | 動作 |
 |---|---|---|
-| `claude`（既定） | `command`（既定 `claude`）、`model`（任意） | `claude -p` を呼ぶ |
+| `claude`（既定） | `command`（既定 `claude`）、`model`（既定 `sonnet`） | `claude -p` を呼ぶ |
 | `ollama` | `model`（必須）、`url`（既定 `http://127.0.0.1:11434`） | Ollama の `/api/generate` を呼ぶ |
 | `command` | `command`（必須）、`args` | 任意のコマンドを起動し、stdin にプロンプト、stdout から HTML を受け取る（例: `ollama run <model>`） |
 
