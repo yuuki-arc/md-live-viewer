@@ -8,29 +8,42 @@ const DOC = '<!doctype html><html><body><p>ok</p></body></html>';
 
 // child_process.spawn の代わり。stdin に書かれた内容と起動引数を記録し、
 // 指定した stdout と終了コードで終わる
-function fakeSpawn({ stdout = DOC, stderr = '', code = 0, hang = false } = {}) {
+function fakeSpawn({ stdout = DOC, stderr = '', code = 0, hang = false, stubborn = false, chunks = null } = {}) {
   const calls = [];
+  const signals = [];
   const spawn = (command, args, options) => {
     const child = new EventEmitter();
     child.stdin = new PassThrough();
     child.stdout = new PassThrough();
     child.stderr = new PassThrough();
     child.killed = false;
-    child.kill = () => { child.killed = true; setImmediate(() => child.emit('close', null)); };
+    // Node と同じく killed は「シグナルを送れた」ことを表し、終了したかどうかではない。
+    // stubborn: シグナルを無視して終わらないプロセス
+    child.kill = (sig) => {
+      signals.push(sig);
+      child.killed = true;
+      if (stubborn) return;
+      setImmediate(() => child.emit('close', null));
+    };
     const call = { command, args, options, stdin: '' };
     calls.push(call);
     child.stdin.on('data', (b) => { call.stdin += b; });
     child.stdin.on('finish', () => {
       if (hang) return;
       setImmediate(() => {
-        child.stdout.end(stdout);
+        if (chunks) {
+          for (const c of chunks) child.stdout.write(c);
+          child.stdout.end();
+        } else {
+          child.stdout.end(stdout);
+        }
         child.stderr.end(stderr);
         child.emit('close', code);
       });
     });
     return child;
   };
-  return { spawn, calls };
+  return { spawn, calls, signals };
 }
 
 test('extractHtml はコードフェンスや前置きを取り除いて HTML 文書だけを返す', () => {
@@ -101,6 +114,30 @@ test('タイムアウトしたらプロセスを止めてエラーにする', as
   const { spawn } = fakeSpawn({ hang: true });
   const gen = createGenerator({ type: 'claude', command: 'claude', model: null }, { spawn, env: {}, timeoutMs: 20 });
   await assert.rejects(gen.generate({ markdown: '# A', title: 'A' }), /timed out/);
+});
+
+test('SIGTERM を無視するプロセスでもタイムアウトで即エラーにし、猶予後に SIGKILL する', async () => {
+  const { spawn, signals } = fakeSpawn({ hang: true, stubborn: true });
+  const gen = createGenerator({ type: 'claude', command: 'claude', model: null }, { spawn, env: {}, timeoutMs: 20, killGraceMs: 10 });
+  await assert.rejects(gen.generate({ markdown: '# A', title: 'A' }), /timed out/);
+  assert.deepEqual(signals, ['SIGTERM']);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
+});
+
+test('多バイト文字がチャンクの境界で分かれても文字化けしない', async () => {
+  const buf = Buffer.from('<!doctype html><html><body>日本語</body></html>');
+  const cut = buf.indexOf(Buffer.from('本')) + 1;
+  const { spawn } = fakeSpawn({ chunks: [buf.subarray(0, cut), buf.subarray(cut)] });
+  const gen = createGenerator({ type: 'claude', command: 'claude', model: null }, { spawn, env: {} });
+  assert.equal(await gen.generate({ markdown: '# A', title: 'A' }), buf.toString('utf8'));
+});
+
+test('出力が上限を超えたらプロセスを止めてエラーにする', async () => {
+  const { spawn, signals } = fakeSpawn({ stdout: 'x'.repeat(100) });
+  const gen = createGenerator({ type: 'command', command: 'gen', args: [] }, { spawn, env: {}, maxOutputBytes: 10 });
+  await assert.rejects(gen.generate({ markdown: '# A', title: 'A' }), /too large/);
+  assert.deepEqual(signals, ['SIGKILL']);
 });
 
 test('command: 指定コマンドを引数付きで起動し、システムプロンプトごと stdin に渡す', async () => {
