@@ -49,3 +49,14 @@ test('</body> が複数あっても最後の 1 箇所にだけ差し込む', () 
   assert.equal((out.match(/mlv-rich-height/g) || []).length, 1);
   assert.ok(out.endsWith('</script></body>'));
 });
+
+test('テーマの CSS を渡すと、生成物のスタイルより後ろに差し込む', () => {
+  const out = decorateRichHtml('<html><head><style>:root{--mlv-bg:#123}</style></head><body></body></html>', {
+    themeCss: ':root:root,:root body{--mlv-bg:#FDF3F2}',
+  });
+  assert.ok(out.indexOf('--mlv-bg:#FDF3F2') > out.indexOf('--mlv-bg:#123'));
+});
+
+test('テーマの指定が無ければ生成物の配色のまま', () => {
+  assert.doesNotMatch(decorateRichHtml('<html><body></body></html>'), /:root:root/);
+});

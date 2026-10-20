@@ -7,7 +7,7 @@ process.stdin.on('end', () => {
   const title = (input.match(/^Title: (.*)$/m) || [])[1] || '';
   process.stdout.write(`Sure, here it is:
 <!doctype html>
-<html><body>
+<html><head><style>:root{--mlv-bg:#123456}body{background:var(--mlv-bg)}</style></head><body>
 <h1 id="fake-rich">FAKE RICH: ${title}</h1>
 <div style="height: 1500px">tall</div>
 </body></html>

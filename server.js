@@ -23,6 +23,7 @@ import { createRichStore, hashSource } from './lib/rich-cache.js';
 import { createRichJobs } from './lib/rich-jobs.js';
 import { createGenerator } from './lib/rich-generator.js';
 import { richPathToUrl, decorateRichHtml, RICH_CSP } from './lib/rich-page.js';
+import { loadThemes } from './lib/rich-theme.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -235,13 +236,17 @@ app.get('/_raw/*', (c) => {
 
 // 生成済みのリッチ HTML。sandbox の CSP で隔離して返す（lib/rich-page.js 参照）。
 // /_raw/ と同じく state.index に載ったページしか引けない
+const RICH_THEMES = loadThemes(path.join(ROOT, 'assets', 'css'));
+
 app.get('/_rich/*', (c) => {
   const reqPath = requestPath(c);
   const url = reqPath === null ? null : richPathToUrl(reqPath);
   if (!url || !state.index.has(url) || !rich.store) return c.notFound();
   const cached = rich.store.read(state.currentSlug, url);
   if (!cached) return c.notFound();
-  return c.html(decorateRichHtml(cached.html), 200, {
+  // ?theme= はビューアで選んでいるテーマ（assets/js/rich-view.js が付ける）。知らない名前は無視する
+  const themeCss = RICH_THEMES.get(c.req.query('theme') || '');
+  return c.html(decorateRichHtml(cached.html, { themeCss }), 200, {
     'Content-Security-Policy': RICH_CSP,
     'X-Content-Type-Options': 'nosniff',
     'Cache-Control': 'no-store',

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { createGenerator, extractHtml, buildUserPrompt, SYSTEM_PROMPT } from '../lib/rich-generator.js';
+import { RICH_COLOR_VARS } from '../lib/rich-theme.js';
 
 const DOC = '<!doctype html><html><body><p>ok</p></body></html>';
 
@@ -45,6 +46,12 @@ function fakeSpawn({ stdout = DOC, stderr = '', code = 0, hang = false, stubborn
   };
   return { spawn, calls, signals };
 }
+
+test('システムプロンプトは、ビューアのテーマで上書きできる色の変数名をすべて指定する', () => {
+  for (const v of RICH_COLOR_VARS) assert.ok(SYSTEM_PROMPT.includes(v), v);
+  // ダークモードは同じ変数の再定義だけで行わせる（テーマで上書きしたときに色が混ざらない）
+  assert.match(SYSTEM_PROMPT, /prefers-color-scheme: dark/);
+});
 
 test('extractHtml はコードフェンスや前置きを取り除いて HTML 文書だけを返す', () => {
   assert.equal(extractHtml(DOC), DOC);

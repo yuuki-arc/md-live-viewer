@@ -86,3 +86,26 @@ test('index ページには表示切替を出さず、Rich モードでも一覧
   await expect(page.locator('.view-picker')).toHaveCount(0);
   await expect(page.locator('ul.root-list')).toBeVisible();
 });
+
+test('Rich 表示はビューアのテーマ色で表示し、テーマを切り替えると追従する', async ({ page }) => {
+  await page.goto('/a/b/d/');
+  await page.locator('.view-picker button[data-view="rich"]').click();
+  await page.locator('.rich-view button.rich-generate').click();
+  const frame = page.frameLocator('.rich-view iframe');
+  await expect(frame.locator('#fake-rich')).toBeVisible({ timeout: 15_000 });
+
+  const themeBg = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim());
+  const richBg = () => frame.locator('body').evaluate((b) => getComputedStyle(b).backgroundColor);
+  const toRgb = (hex) => {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`;
+  };
+
+  // 生成物の既定色（#123456）ではなく、今のテーマの --bg になる
+  await expect.poll(async () => richBg()).toBe(toRgb(await themeBg()));
+
+  await page.locator('#theme-select').selectOption('mint-sage');
+  await expect.poll(async () => (await themeBg()).toLowerCase()).not.toBe('');
+  await expect(page.locator('.rich-view iframe')).toHaveAttribute('src', /theme=mint-sage/);
+  await expect.poll(async () => richBg()).toBe(toRgb(await themeBg()));
+});

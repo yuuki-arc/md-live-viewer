@@ -52,6 +52,19 @@ async function loadStatus(request, fallback) {
   if (seq === statusSeq && target === section) renderStatus(s);
 }
 
+// 今のテーマ名。base.html は <link id="theme-css" href="/assets/css/<theme>.css"> を差し替えて切り替える
+function currentTheme() {
+  const m = /\/assets\/css\/([\w-]+)\.css$/.exec(document.getElementById('theme-css')?.getAttribute('href') || '');
+  return m ? m[1] : '';
+}
+
+// サーバが ?theme= のテーマ色で生成物の配色を上書きして返す（lib/rich-theme.js）
+function loadFrame() {
+  if (!iframe || !shownVersion) return;
+  const dir = location.pathname + (location.pathname.endsWith('/') ? '' : '/');
+  iframe.src = '/_rich' + dir + '?v=' + encodeURIComponent(shownVersion) + '&theme=' + encodeURIComponent(currentTheme());
+}
+
 async function fetchStatus() {
   const r = await fetch('/api/rich?path=' + encodeURIComponent(url));
   if (!r.ok) throw new Error('status ' + r.status);
@@ -121,7 +134,7 @@ function renderStatus(s) {
     }
     if (shownVersion !== version) {
       shownVersion = version;
-      iframe.src = '/_rich' + location.pathname + (location.pathname.endsWith('/') ? '' : '/') + '?v=' + encodeURIComponent(version);
+      loadFrame();
     }
   }
 }
@@ -171,6 +184,10 @@ if (picker && main && url) {
     const border = iframe.offsetHeight - iframe.clientHeight;
     iframe.style.height = Math.ceil(h) + border + 'px';
   });
+
+  // テーマを切り替えたら、新しいテーマの色で読み込み直す
+  const themeLink = document.getElementById('theme-css');
+  if (themeLink) new MutationObserver(loadFrame).observe(themeLink, { attributes: true, attributeFilter: ['href'] });
 
   // 生成の完了・失敗はサーバから SSE で届く
   if (window.EventSource) {

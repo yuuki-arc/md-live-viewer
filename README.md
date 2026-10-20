@@ -50,7 +50,8 @@ npm run dev
 
 - **生成は手動**: Rich 表示で「生成する」を押したページだけ生成する。Markdown を編集すると「元の Markdown が更新されています」と出るので、必要なら「再生成」する（保存のたびに自動生成はしない）
 - **API キー・従量課金なし**: 既定ではローカルの `claude` CLI（`claude -p`）を子プロセスで呼び、ログイン中の Claude サブスクリプションの利用枠で生成する。`ANTHROPIC_API_KEY` は子プロセスに渡さない。ツールなし・ユーザー設定 / MCP なしで実行するため、ファイル操作やコマンド実行はさせない
-- **キャッシュ**: 生成物は md-live-viewer 側の `.cache/rich/`（git 管理外）に置き、vault には書き込まない
+- **キャッシュ**: 生成物は md-live-viewer 側の `.cache/rich/`（git 管理外）に置き、vault には書き込まない。`.cache/rich/<vault の slug>/<ページのパス>/index.html` に置くので、ファイルをブラウザで直接開ける（メタ情報は末尾の `<script type="application/json" id="mlv-meta">` に埋め込む）
+- **配色**: 生成物には色を `--mlv-bg` / `--mlv-accent` などの CSS 変数だけで書かせる。Rich 表示ではビューアのテーマの色で上書きし、テーマを切り替えると追従する。ファイルを直接開いたときは、生成物が自分で決めた配色（OS のダークモードにも追従）で表示される。この仕組みより前に生成したページは、再生成するとテーマに追従する
 - **隔離**: 生成 HTML は `sandbox`（`allow-same-origin` なし）の iframe と CSP で表示し、ビューアの API・外部リソースの読み込み・通信・フォーム送信を禁じる。外部リソースを読まない自己完結 HTML を生成させる。ただし元の Markdown の外部リンクを開けるよう、クリックで新しいタブを開くことは許している（生成物は LLM の出力なので、怪しいリンクは開かない）
 - 生成は 1 件ずつ順番に実行する。1 ページあたり数十秒〜数分かかる
 
@@ -116,6 +117,7 @@ md-live-viewer/
 │   ├── rich-cache.js       # 生成物のキャッシュ（.cache/rich）
 │   ├── rich-jobs.js        # 生成ジョブの状態管理と直列実行
 │   ├── rich-page.js        # /_rich/ の URL 変換・CSP・高さ通知スクリプト
+│   ├── rich-theme.js       # テーマ CSS の色を生成物の --mlv-* 変数に読み替える
 │   └── serial.js           # 非同期処理の直列化（vault 切替用）
 ├── _includes/
 │   └── base.html           # HTML テンプレート
@@ -167,7 +169,7 @@ md-live-viewer/
 | GET | `/assets/**` | CSS/JS 静的配信 |
 | GET | `/_attachments/**` | currentVault の添付ファイル |
 | GET | `/_raw/:path/` | 生 Markdown を `text/plain` で返す（レンダリング・JS なし） |
-| GET | `/_rich/:path/` | 生成済みのリッチ HTML（sandbox CSP 付き）。未生成なら 404 |
+| GET | `/_rich/:path/?theme=` | 生成済みのリッチ HTML（sandbox CSP 付き）。`theme` を付けるとそのテーマの色で表示する。未生成なら 404 |
 | GET | `/api/rich?path=` | Rich 表示の状態（生成済みか・古いか・ジョブの状態） |
 | POST | `/api/rich/generate` | body `{path}` で生成を依頼（202） |
 | GET | `/api/tree?path=` | サブツリー JSON |

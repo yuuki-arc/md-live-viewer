@@ -696,5 +696,5 @@ html.view-rich body:has(.view-picker) #toc { display: none !important; }
   height: 70vh;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  background: #fff;
+  background: var(--surface);
 }
