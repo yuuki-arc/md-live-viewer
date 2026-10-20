@@ -93,3 +93,90 @@ test('祖先展開で各階層の /api/tree は1回だけ取得される（二�
   expect(counts['a']).toBe(1);
   expect(counts['a/b']).toBe(1);
 });
+
+// 同じ検索結果から次々にページを開けるよう、検索文字列はタブごと（sessionStorage）に覚えておく
+test('検索文字列はページを移動しても残り、同じ検索結果のメニューが表示される', async ({ page }) => {
+  await page.goto('/a/b/c/');
+  await page.locator('#sidebar-search').fill('d');
+  const results = page.locator('#sidebar-tree a');
+  await expect(results.first()).toBeVisible();
+  await expect(page.locator('details[data-path="a/b"]')).toHaveCount(0);
+  const hrefs = await results.evaluateAll((as) => as.map((a) => a.getAttribute('href')));
+
+  // 結果から別のページを開く
+  const next = hrefs.find((h) => h !== '/a/b/c/');
+  await page.locator(`#sidebar-tree a[href="${next}"]`).click();
+  await expect(page).toHaveURL(next);
+
+  await expect(page.locator('#sidebar-search')).toHaveValue('d');
+  await expect.poll(() => results.evaluateAll((as) => as.map((a) => a.getAttribute('href')))).toEqual(hrefs);
+  // 結果の中で今のページがわかる
+  await expect(page.locator('#sidebar-tree a.is-active')).toHaveAttribute('href', next);
+});
+
+test('検索をクリアすると、次のページでもツリーに戻る', async ({ page }) => {
+  await page.goto('/a/b/c/');
+  await page.locator('#sidebar-search').fill('d');
+  await expect(page.locator('details[data-path="a/b"]')).toHaveCount(0);
+  await page.locator('#sidebar-search').fill('');
+  await expect(page.locator('details[data-path="a/b"]')).toHaveAttribute('open', '');
+
+  await page.goto('/a/e/');
+  await expect(page.locator('#sidebar-search')).toHaveValue('');
+  await expect(page.locator('details[data-path="a"]')).toHaveAttribute('open', '');
+});
+
+test('検索をクリアした直後に打ち直しても、遅れて届いたツリーで検索結果が上書きされない', async ({ page }) => {
+  await page.goto('/a/b/c/');
+  await page.locator('#sidebar-search').fill('d');
+  await expect(page.locator('details[data-path="a/b"]')).toHaveCount(0);
+
+  // クリアで始まるツリーの取得を、打ち直して検索結果が出るまで止めておく
+  let releaseTree;
+  const treeHeld = new Promise((r) => { releaseTree = r; });
+  let treeRequested;
+  const requested = new Promise((r) => { treeRequested = r; });
+  await page.route('**/api/tree?path=', async (route) => {
+    treeRequested();
+    await treeHeld;
+    await route.continue();
+  });
+  await page.locator('#sidebar-search').fill('');
+  await requested;
+  await page.locator('#sidebar-search').fill('d');
+  await expect(page.locator('#sidebar-tree a').first()).toBeVisible();
+
+  // 止めていたツリーの応答を返しても、検索結果のまま
+  const treeResponded = page.waitForResponse('**/api/tree?path=');
+  releaseTree();
+  await treeResponded;
+  await expect(page.locator('#sidebar-tree a').first()).toBeVisible();
+  await expect(page.locator('details[data-path="a/b"]')).toHaveCount(0);
+  await expect(page.locator('#sidebar-search')).toHaveValue('d');
+});
+
+test('ページを開いたときに検索の復元が失敗しても、再試行できる', async ({ page }) => {
+  await page.goto('/a/b/c/');
+  await page.locator('#sidebar-search').fill('d');
+  await expect(page.locator('details[data-path="a/b"]')).toHaveCount(0);
+
+  // 自動のリトライも含めて失敗させ、再試行ボタンが出てから通す
+  let failing = true;
+  await page.route('**/api/search?*', (route) => (failing ? route.abort() : route.continue()));
+  await page.goto('/a/e/');
+  const retry = page.locator('.tree-error__retry');
+  await expect(retry).toBeVisible();
+  failing = false;
+  await retry.click();
+  await expect(page.locator('#sidebar-tree a').first()).toBeVisible();
+  await expect(page.locator('#sidebar-search')).toHaveValue('d');
+});
+
+test('検索結果が 0 件なら、そのことを表示する（ページを移動しても空のサイドバーにならない）', async ({ page }) => {
+  await page.goto('/a/b/c/');
+  await page.locator('#sidebar-search').fill('zzqqxxnothing');
+  await expect(page.locator('#sidebar-tree .tree-empty')).toBeVisible();
+  await page.goto('/a/e/');
+  await expect(page.locator('#sidebar-search')).toHaveValue('zzqqxxnothing');
+  await expect(page.locator('#sidebar-tree .tree-empty')).toBeVisible();
+});
