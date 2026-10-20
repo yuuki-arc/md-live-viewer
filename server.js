@@ -12,7 +12,7 @@ import * as treeLib from './lib/tree.js';
 import * as searchLib from './lib/search.js';
 import { render } from './lib/render.js';
 import { wrap } from './lib/template.js';
-import { addClient, broadcast } from './lib/sse.js';
+import { addClient, broadcast, missedSince, helloChunk } from './lib/sse.js';
 import { rawPathToUrl, toRawHref } from './lib/raw.js';
 import { escapeHtml } from './lib/escape.js';
 import { encodePath, decodePath } from './assets/js/url-path.js';
@@ -349,6 +349,10 @@ app.get('/api/live', (c) => {
       },
     };
     const remove = addClient(client);
+    // 裏に回って閉じていたタブがつなぎ直したとき、閉じている間のイベントを送り直す（?since= は
+    // assets/js/live.js が付ける。EventSource の自動再接続では Last-Event-ID ヘッダで届く）。
+    // 登録と同じ同期処理の中で求めるので、送り直しと新しいイベントの間に抜けも重複もない
+    const missed = [...missedSince(c.req.query('since') || c.req.header('last-event-id')), helloChunk()];
     stream.onAbort(() => {
       closed = true;
       remove();
@@ -356,6 +360,7 @@ app.get('/api/live', (c) => {
     });
     try {
       await stream.write(': connected\n\n');
+      for (const chunk of missed) await stream.write(chunk);
       while (!closed) {
         if (queue.length === 0) {
           await new Promise((r) => { waker = r; });

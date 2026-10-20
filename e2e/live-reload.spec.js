@@ -68,3 +68,58 @@ test('SSE は 1 ページにつき 1 本だけ開き、タブを 3 つ開いて�
   }
   expect(liveRequests).toBe(3);
 });
+
+// Playwright のページはどれも表示中として扱われるので、visibilityState を差し替えて
+// タブが裏に回った・表に戻ったときの動きを再現する
+async function setVisibility(page, visibility) {
+  await page.evaluate((v) => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => v === 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, visibility);
+}
+
+const liveState = (page) => page.evaluate(async () => (await import('/assets/js/live.js')).liveEvents.readyState);
+
+test('裏に回ったタブは SSE を閉じ、表に戻るとつなぎ直す', async ({ page }) => {
+  await gotoAndWaitLive(page, '/a/b/c/');
+  await setVisibility(page, 'hidden');
+  await expect.poll(() => liveState(page)).toBe(2);
+  await setVisibility(page, 'visible');
+  await expect.poll(() => liveState(page)).toBe(1);
+});
+
+test('裏に回っている間に保存した変更は、表に戻ったときに反映される', async ({ page, request }) => {
+  const file = join(DIR, '_tmp-裏.md');
+  const url = '/special/' + encodeURIComponent('_tmp-裏') + '/';
+  writeFileSync(file, '# 裏\n\nbefore\n');
+  try {
+    await expect.poll(async () => (await request.get(url)).status()).toBe(200);
+    await gotoAndWaitLive(page, url);
+    await setVisibility(page, 'hidden');
+    await expect.poll(() => liveState(page)).toBe(2);
+
+    writeFileSync(file, '# 裏\n\nafter\n');
+    // 裏に回っている間は通知が届かないので、まだ古い内容のまま
+    await expect.poll(async () => (await request.get(url)).text()).toContain('after');
+    await expect(page.locator('main.prose')).toContainText('before');
+
+    await setVisibility(page, 'visible');
+    await expect(page.locator('main.prose')).toContainText('after', { timeout: 10_000 });
+  } finally {
+    rmSync(file, { force: true });
+  }
+});
+
+test('タブを 8 つ開いても、裏のタブは接続を持たないのでサイドバーが表示される', async ({ context }) => {
+  const pages = [];
+  for (let i = 0; i < 8; i++) {
+    const page = await context.newPage();
+    await page.goto('/a/b/c/');
+    await expect(page.locator('#sidebar-tree a').first()).toBeVisible({ timeout: 5_000 });
+    // 次のタブを開くと、それまでのタブは裏に回る
+    await setVisibility(page, 'hidden');
+    pages.push(page);
+  }
+  for (const page of pages) await expect.poll(() => liveState(page)).toBe(2);
+});

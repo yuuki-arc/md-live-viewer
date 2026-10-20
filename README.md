@@ -93,6 +93,7 @@ Browser ──HTTP/SSE──> Hono (server.js, :7777)
 - **生 Markdown**: `GET /_raw/:path/` → 同じく state.index から filePath 解決 → 無加工のまま `text/plain` で返す。HTML テンプレートを通さないため、この URL ではクライアント JS が一切走らない（レンダリング済みページの footer の Raw リンクから辿れる）
 - **サイドバー**: 初期 shell のみ、`<details>` 展開時に `/api/tree?path=...` で子を取得
 - **ファイル変更**: chokidar → index 更新 → LRU invalidate → SSE `reload`
+- **SSE の接続数**: ブラウザは同じホストへの接続を 6 本までに制限するので、表示中のタブだけが SSE を張る。裏に回ったタブや bfcache に入ったページは閉じ、表に戻るとつなぎ直す。イベントには id を付けてサーバが直近 200 件を覚えており、つなぎ直すときに `?since=<最後に受け取った id>` で閉じている間の分を送り直す。覚えている範囲より古い場合やサーバ再起動をまたいだ場合は、全ページを読み込み直させる
 - **Rich 表示**: `POST /api/rich/generate` → 生成ジョブ（1 件ずつ）→ キャッシュに保存 → SSE `rich` → `GET /_rich/:path/` を sandbox iframe で表示
 - **vault 切替**: `POST /api/switch {slug}` → watcher stop → state reset → 新 vault walk → SSE `reload` ブロードキャスト
 
@@ -107,7 +108,7 @@ md-live-viewer/
 │   ├── render.js           # markdown-it + wikilinks + callouts + mermaid フェンス
 │   ├── tree.js             # /api/tree?path= 用
 │   ├── search.js           # /api/search?q= 用
-│   ├── sse.js              # /api/live 用
+│   ├── sse.js              # /api/live 用（イベントの id と取りこぼしの送り直し）
 │   ├── raw.js              # /_raw/ の URL 変換
 │   ├── template.js         # {{title}} / {{source}} / {{rawLink}} / {{content}} 置換
 │   ├── escape.js           # HTML エスケープ
@@ -176,7 +177,7 @@ md-live-viewer/
 | GET | `/api/search?q=` | ファイル名・パスの fuzzy / prefix 検索 (MiniSearch) |
 | GET | `/api/vaults` | 設定済み vault 一覧 |
 | POST | `/api/switch` | body `{slug}` で切替 |
-| GET | `/api/live` | SSE、`reload` / `rich` イベント受信 |
+| GET | `/api/live?since=` | SSE、`hello`（接続時の位置）/ `reload` / `rich` イベント受信。`since` を付けると、その id より後のイベントを送り直す |
 
 ## テスト
 
