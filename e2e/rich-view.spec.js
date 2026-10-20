@@ -37,6 +37,7 @@ test('Rich に切り替えて生成すると iframe に生成 HTML が表示さ�
   await expect
     .poll(() => richFrame.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight))
     .toBeLessThanOrEqual(0);
+  expect(await richFrame.evaluate(() => getComputedStyle(document.documentElement).overflowY)).toBe('hidden');
 
   await page.reload();
   await expect(page.locator('.view-picker button[data-view="rich"]')).toHaveAttribute('aria-pressed', 'true');

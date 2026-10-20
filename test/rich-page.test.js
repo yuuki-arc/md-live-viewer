@@ -29,6 +29,16 @@ test('decorateRichHtml は </body> の直前に高さ通知スクリプトと高
   assert.match(out, /<p>x<\/p><style>[\s\S]*min-height:0[\s\S]*<script>[\s\S]*mlv-rich-height[\s\S]*<\/script><\/body><\/html>$/);
 });
 
+test('iframe は内容の高さまで伸ばすので、文書側のスクロールバーは出さない', () => {
+  const out = decorateRichHtml('<html><body><p>x</p></body></html>');
+  assert.match(out, /html\{[^}]*overflow:hidden!important/);
+});
+
+test('高さは小数の端数を切り上げて通知する（拡大率によって 1px 足りなくならないように）', () => {
+  const out = decorateRichHtml('<html><body></body></html>');
+  assert.match(out, /Math\.ceil\(document\.documentElement\.getBoundingClientRect\(\)\.height\)/);
+});
+
 test('</body> が無い文書では末尾に差し込む', () => {
   const out = decorateRichHtml('<p>x</p>');
   assert.ok(out.startsWith('<p>x</p><style>'));
