@@ -25,6 +25,24 @@ function saveOpenSet(set) {
   } catch (_) {}
 }
 
+// 検索文字列。同じ検索結果から次々にページを開けるよう、ページを移動しても残す。
+// タブごとに別の検索をしたいので sessionStorage に置き、vault ごとに分ける
+const SEARCH_KEY = 'md-live-viewer-search:' + SLUG;
+
+function loadQuery() {
+  try {
+    return sessionStorage.getItem(SEARCH_KEY) || '';
+  } catch (_) {
+    return '';
+  }
+}
+function saveQuery(q) {
+  try {
+    if (q) sessionStorage.setItem(SEARCH_KEY, q);
+    else sessionStorage.removeItem(SEARCH_KEY);
+  } catch (_) {}
+}
+
 // ユーザーが明示的に開いた details の slug（localStorage に永続化）。
 const openSet = loadOpenSet();
 // 祖先の自動展開で開いた slug。手動展開と区別し、これらは永続化しない
@@ -138,10 +156,13 @@ function renderChildren(parent, children) {
 // 現在ページの祖先ディレクトリをルート側から順に開き、各階層を
 // 遅延ロードして現在ページをツリー上に可視化する。展開は一時的で
 // localStorage には保存しない（ユーザーの手動開閉状態を上書きしない）。
-async function expandToCurrent() {
+// seq（showFullTree の viewSeq）が古くなったら、途中で検索結果に差し替わっているので止める。
+// 切り離された古いツリーを取得し続けたり、検索結果の中へ勝手にスクロールしたりしない
+async function expandToCurrent(seq) {
   const slugs = ancestorSlugs(location.pathname);
   let parentUl = tree;
   for (const slug of slugs) {
+    if (seq !== viewSeq) return;
     const det = findChildDetails(parentUl, slug);
     if (!det) {
       console.warn('[sidebar] 祖先ディレクトリが見つからず自動展開を中断:', slug);
@@ -153,6 +174,7 @@ async function expandToCurrent() {
     await ensureLoaded(det, ul);
     parentUl = ul;
   }
+  if (seq !== viewSeq) return;
   const active = tree.querySelector('a.is-active');
   if (active && active.scrollIntoView) {
     active.scrollIntoView({ block: 'nearest' });
@@ -175,49 +197,80 @@ function renderTreeError(message, onRetry) {
   tree.appendChild(li);
 }
 
+// ツリーと検索結果は同じ #sidebar-tree に描画する。取得が重なったとき（検索をクリアした直後に
+// 打ち直す、入力が速いなど）に遅れて届いた古い応答で上書きしないよう、最後に出したものだけを描画する
+let viewSeq = 0;
+
 // ルートツリーを描画し、現在ページの祖先まで展開する。初期化と
 // 検索クリアの両方から使う。
 async function showFullTree() {
+  const seq = ++viewSeq;
   try {
     const data = await fetchTree('');
+    if (seq !== viewSeq) return;
     renderChildren(tree, data.children);
-    await expandToCurrent();
+    await expandToCurrent(seq);
   } catch (err) {
+    if (seq !== viewSeq) return;
     console.error('[sidebar] ツリーの読み込みに失敗:', err);
     renderTreeError('ツリーの読み込みに失敗しました。', showFullTree);
   }
 }
 
+// ツリーを検索結果のフラットなリストに置き換える。今のページの結果は is-active にする
+async function showSearch(q) {
+  const seq = ++viewSeq;
+  try {
+    // ツリーと同じく、node --watch の再起動の瞬間などの一過性の失敗はリトライで自己回復させる
+    const data = await fetchJson('/api/search?q=' + encodeURIComponent(q));
+    if (seq !== viewSeq) return;
+    tree.innerHTML = '';
+    // 検索文字列は次のページにも残るので、0 件のときに空白のサイドバーにしない
+    if (!(data.results || []).length) {
+      const li = document.createElement('li');
+      li.className = 'tree-empty';
+      li.textContent = '該当するページはありません';
+      tree.appendChild(li);
+      return;
+    }
+    (data.results || []).forEach(function (res) {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = encodePath(res.url);
+      a.textContent = res.name;
+      if (res.url === CURRENT_PATH) a.classList.add('is-active');
+      li.appendChild(a);
+      tree.appendChild(li);
+    });
+  } catch (err) {
+    if (seq !== viewSeq) return;
+    console.error('[sidebar] 検索に失敗:', err);
+    // ページを開いたときの復元で失敗しても、入力し直さずにやり直せるようにする
+    renderTreeError('検索に失敗しました。', () => showSearch(q));
+  }
+}
+
 if (tree) {
-  showFullTree();
+  // 前のページで検索していれば、ツリーを出さずに同じ検索結果から始める
+  const initialQuery = search ? loadQuery() : '';
+  if (initialQuery) {
+    search.value = initialQuery;
+    showSearch(initialQuery);
+  } else {
+    showFullTree();
+  }
 
   let searchTimer;
   if (search) {
     search.addEventListener('input', function (e) {
       clearTimeout(searchTimer);
       const q = e.target.value.trim();
-      searchTimer = setTimeout(async function () {
-        if (!q) {
-          await showFullTree();
-          return;
-        }
-        try {
-          const r = await fetch('/api/search?q=' + encodeURIComponent(q));
-          if (!r.ok) throw new Error('GET /api/search ' + r.status);
-          const data = await r.json();
-          tree.innerHTML = '';
-          (data.results || []).forEach(function (res) {
-            const li = document.createElement('li');
-            const a = document.createElement('a');
-            a.href = encodePath(res.url);
-            a.textContent = res.name;
-            li.appendChild(a);
-            tree.appendChild(li);
-          });
-        } catch (err) {
-          console.error('[sidebar] 検索に失敗:', err);
-          renderTreeError('検索に失敗しました。再度お試しください。');
-        }
+      saveQuery(q);
+      // 待っている間に届いた古い応答は、もう描画しない
+      ++viewSeq;
+      searchTimer = setTimeout(function () {
+        if (q) showSearch(q);
+        else showFullTree();
       }, 200);
     });
   }

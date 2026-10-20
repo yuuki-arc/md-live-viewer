@@ -423,6 +423,11 @@ main.prose { max-width: 740px; margin: 0 auto; padding: var(--sp-10) 0 var(--sp-
   background: var(--accent-softer);
   color: var(--accent-pressed);
 }
+.sidebar ul.side-tree li.tree-empty {
+  color: var(--muted);
+  font-size: var(--fz-sm);
+  padding: var(--sp-2) 0;
+}
 .sidebar ul.side-tree li.tree-error {
   padding: 8px;
   font-size: var(--fz-sm);
