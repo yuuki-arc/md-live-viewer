@@ -180,3 +180,29 @@ test('検索結果が 0 件なら、そのことを表示する（ページを�
   await expect(page.locator('#sidebar-search')).toHaveValue('zzqqxxnothing');
   await expect(page.locator('#sidebar-tree .tree-empty')).toBeVisible();
 });
+
+test('検索結果の並び順を切り替えられ、選んだ並び順は次に開いたときも使われる', async ({ page }) => {
+  await page.goto('/a/b/c/');
+  const sort = page.locator('#sidebar-sort');
+  await expect(sort).toHaveValue('score');
+
+  const pathSearch = page.waitForRequest((req) => req.url().includes('/api/search?') && req.url().includes('sort=path'));
+  await page.locator('#sidebar-search').fill('special');
+  await expect(page.locator('#sidebar-tree a').first()).toBeVisible();
+  // 検索中に切り替えると、その場で並べ直す
+  await sort.selectOption('path');
+  await pathSearch;
+  await expect(page.locator('#sidebar-tree a')).toHaveText([
+    'special/50% off',
+    'special/C#',
+    'special/heading-target',
+    'special/links',
+    'special/Q&A',
+    'special/メモ',
+  ]);
+
+  // 別のタブで開き直しても、選んだ並び順が既定になる
+  const other = await page.context().newPage();
+  await other.goto('/top/');
+  await expect(other.locator('#sidebar-sort')).toHaveValue('path');
+});

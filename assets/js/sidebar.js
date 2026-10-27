@@ -3,6 +3,7 @@ import { encodePath, decodePath } from './url-path.js';
 
 const tree = document.getElementById('sidebar-tree');
 const search = document.getElementById('sidebar-search');
+const sortSelect = document.getElementById('sidebar-sort');
 
 const metaSlug = document.querySelector('meta[name="source-slug"]');
 const SLUG = metaSlug ? metaSlug.getAttribute('content') || '' : '';
@@ -40,6 +41,25 @@ function saveQuery(q) {
   try {
     if (q) sessionStorage.setItem(SEARCH_KEY, q);
     else sessionStorage.removeItem(SEARCH_KEY);
+  } catch (_) {}
+}
+
+// 検索結果の並び順（score: 関連度順 / path: パス順）。好みの問題なので vault やタブで分けず、
+// 選んだものを次からの既定にする
+const SORT_KEY = 'md-live-viewer-search-sort';
+const SORTS = ['score', 'path'];
+
+function loadSort() {
+  try {
+    const v = localStorage.getItem(SORT_KEY);
+    return SORTS.includes(v) ? v : 'score';
+  } catch (_) {
+    return 'score';
+  }
+}
+function saveSort(v) {
+  try {
+    localStorage.setItem(SORT_KEY, v);
   } catch (_) {}
 }
 
@@ -222,7 +242,8 @@ async function showSearch(q) {
   const seq = ++viewSeq;
   try {
     // ツリーと同じく、node --watch の再起動の瞬間などの一過性の失敗はリトライで自己回復させる
-    const data = await fetchJson('/api/search?q=' + encodeURIComponent(q));
+    const sort = sortSelect ? sortSelect.value : 'score';
+    const data = await fetchJson('/api/search?q=' + encodeURIComponent(q) + '&sort=' + sort);
     if (seq !== viewSeq) return;
     tree.innerHTML = '';
     // 検索文字列は次のページにも残るので、0 件のときに空白のサイドバーにしない
@@ -251,6 +272,8 @@ async function showSearch(q) {
 }
 
 if (tree) {
+  if (sortSelect) sortSelect.value = loadSort();
+
   // 前のページで検索していれば、ツリーを出さずに同じ検索結果から始める
   const initialQuery = search ? loadQuery() : '';
   if (initialQuery) {
@@ -272,6 +295,18 @@ if (tree) {
         if (q) showSearch(q);
         else showFullTree();
       }, 200);
+    });
+  }
+
+  if (sortSelect) {
+    sortSelect.addEventListener('change', function () {
+      saveSort(sortSelect.value);
+      // 検索中なら今の結果をその場で並べ直す。ツリー表示中は次の検索から効く
+      const q = search ? search.value.trim() : '';
+      if (q) {
+        clearTimeout(searchTimer);
+        showSearch(q);
+      }
     });
   }
 }

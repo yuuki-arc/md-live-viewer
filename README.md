@@ -174,7 +174,7 @@ md-live-viewer/
 | GET | `/api/rich?path=` | Rich 表示の状態（生成済みか・古いか・ジョブの状態） |
 | POST | `/api/rich/generate` | body `{path}` で生成を依頼（202） |
 | GET | `/api/tree?path=` | サブツリー JSON |
-| GET | `/api/search?q=` | ファイル名・パスの fuzzy / prefix 検索 (MiniSearch) |
+| GET | `/api/search?q=&sort=` | ファイル名・パスの fuzzy / prefix 検索 (MiniSearch)。`sort=score`（既定・関連度順、同点はパス順）/ `sort=path`（関連度上位 50 件をパス順） |
 | GET | `/api/vaults` | 設定済み vault 一覧 |
 | POST | `/api/switch` | body `{slug}` で切替 |
 | GET | `/api/live?since=` | SSE、`hello`（接続時の位置）/ `reload` / `rich` イベント受信。`since` を付けると、その id より後のイベントを送り直す |
