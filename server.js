@@ -307,7 +307,8 @@ app.get('/api/tree', (c) => {
 
 app.get('/api/search', (c) => {
   const q = c.req.query('q') || '';
-  return c.json(searchLib.search(q));
+  const sort = c.req.query('sort');
+  return c.json(searchLib.search(q, { sort }));
 });
 
 app.post('/api/switch', async (c) => {
