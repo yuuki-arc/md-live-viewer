@@ -57,11 +57,7 @@ function loadConfig() {
     console.warn(`[md-live-viewer] config at ${CONFIG_PATH}${CONFIG_SOURCE} is not valid JSON: ${err.message}`);
     return false;
   }
-  const { sources, legacy } = readSources(cfg);
-  if (legacy) {
-    console.warn(`[md-live-viewer] config key "vaults" is deprecated; rename it to "sources" in ${CONFIG_PATH}`);
-  }
-  state.sources = sources;
+  state.sources = readSources(cfg);
   state.excludedDirs = new Set(
     Array.isArray(cfg.excludedDirs) ? cfg.excludedDirs : ['.git']
   );

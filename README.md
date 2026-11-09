@@ -30,7 +30,7 @@ npm run dev
 
 ## ソースの追加
 
-`config.json` を編集して `sources` 配列にエントリを追加後、サーバを再起動（旧名の `vaults` も読めるが、起動時に警告を出す）:
+`config.json` を編集して `sources` 配列にエントリを追加後、サーバを再起動（Obsidian の vault を並べる場合など、キー名は `vaults` と書いてもよい。両方あれば `sources` を優先）:
 
 ```json
 {
