@@ -18,21 +18,21 @@ test('.md 以外は対象外', () => {
   assert.equal(isMarkdown('/v/img.png'), false);
 });
 
-// 実ファイルの vault で load() し、終了後に watcher と state を片付ける
-async function withVault(files, fn) {
-  const vault = mkdtempSync(join(tmpdir(), 'mlv-indexer-'));
+// 実ファイルのソースで load() し、終了後に watcher と state を片付ける
+async function withSource(files, fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'mlv-indexer-'));
   for (const [rel, body] of Object.entries(files)) {
     const parts = rel.split('/');
-    if (parts.length > 1) mkdirSync(join(vault, ...parts.slice(0, -1)), { recursive: true });
-    writeFileSync(join(vault, rel), body);
+    if (parts.length > 1) mkdirSync(join(dir, ...parts.slice(0, -1)), { recursive: true });
+    writeFileSync(join(dir, rel), body);
   }
   resetState();
   try {
-    return await fn(vault);
+    return await fn(dir);
   } finally {
     await stop();
     resetState();
-    rmSync(vault, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true });
   }
 }
 
@@ -65,18 +65,18 @@ function failSearchIndexAddFor(urls) {
   return attempted;
 }
 
-test('load() は特殊なファイル名を含む vault でも初回走査を完了する', async () => {
-  await withVault({ '50% off.md': '# a\n', 'sub/README.MD': '# b\n', 'img.png': '' }, async (vault) => {
-    await withTimeout(load(vault), 5000, 'load()');
+test('load() は特殊なファイル名を含むソースでも初回走査を完了する', async () => {
+  await withSource({ '50% off.md': '# a\n', 'sub/README.MD': '# b\n', 'img.png': '' }, async (dir) => {
+    await withTimeout(load(dir), 5000, 'load()');
     assert.deepEqual([...state.index.keys()].sort(), ['/50% off/', '/sub/README/']);
   });
 });
 
 test('初回走査で 1 ファイルの反映に失敗しても load() は完了し、他のファイルは登録される', async (t) => {
   const logged = t.mock.method(console, 'error', () => {});
-  await withVault({ 'good.md': '# g\n', 'bad.md': '# b\n' }, async (vault) => {
+  await withSource({ 'good.md': '# g\n', 'bad.md': '# b\n' }, async (dir) => {
     failSearchIndexAddFor(['/bad/']);
-    await withTimeout(load(vault), 5000, 'load()');
+    await withTimeout(load(dir), 5000, 'load()');
     assert.ok(state.searchIndex.has('/good/'), '失敗していないファイルは検索に載る');
     assert.ok(logged.mock.calls.some((c) => String(c.arguments[0]).includes('初回走査')), '失敗がログに残る');
   });
@@ -88,13 +88,13 @@ test('起動後の add / change で反映に失敗しても unhandled rejection 
   const onUnhandled = (reason) => unhandled.push(reason);
   process.on('unhandledRejection', onUnhandled);
   try {
-    await withVault({ 'good.md': '# g\n' }, async (vault) => {
-      await withTimeout(load(vault), 5000, 'load()');
+    await withSource({ 'good.md': '# g\n' }, async (dir) => {
+      await withTimeout(load(dir), 5000, 'load()');
       const attempted = failSearchIndexAddFor(['/late/', '/good/']);
 
-      writeFileSync(join(vault, 'late.md'), '# late\n');
+      writeFileSync(join(dir, 'late.md'), '# late\n');
       await waitFor(() => attempted.includes('/late/'), 5000, 'late.md の add');
-      writeFileSync(join(vault, 'good.md'), '# changed\n');
+      writeFileSync(join(dir, 'good.md'), '# changed\n');
       await waitFor(() => attempted.includes('/good/'), 5000, 'good.md の change');
 
       // reject がハンドラに届くまで数ティック待ってから判定する

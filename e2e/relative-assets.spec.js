@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const VAULT = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'vault');
+const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'source');
 
 // ページは /<dir>/<name>/ で配信されるが、隣の画像はファイル基準の相対パスで書かれる
 test('Markdown の隣にある画像を相対パスの <img> で表示できる', async ({ page }) => {
@@ -19,10 +19,10 @@ test('Markdown の隣にある画像への相対リンクを開ける', async ({
   const res = await page.request.get(new URL(href, page.url()).href);
   expect(res.status()).toBe(200);
   expect(res.headers()['content-type']).toBe('image/svg+xml');
-  expect(await res.text()).toBe(readFileSync(join(VAULT, 'media', '図 1.svg'), 'utf8'));
+  expect(await res.text()).toBe(readFileSync(join(FIXTURE_DIR, 'media', '図 1.svg'), 'utf8'));
 });
 
-test('Markdown 本体や vault 外はアセットとして返さない', async ({ request }) => {
+test('Markdown 本体やソース外はアセットとして返さない', async ({ request }) => {
   expect((await request.get('/media/gallery.md')).status()).toBe(404);
   expect((await request.get('/media/%2E%2E/%2E%2E/package.json')).status()).toBe(404);
 });

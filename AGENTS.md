@@ -13,7 +13,7 @@
 
 - ESM（`package.json` の `"type": "module"`）。CommonJS 構文（`require` / `module.exports`）は使わない
 - サーバ起動には `config.json` が必要（`config.example.json` からコピーして作成）。マシン固有の絶対パスを含むため git 管理外 — コミットに含めない
-- ユニットテストは `config.json` 不要。E2E は `e2e/fixtures/vault/` を指す一時 config（`e2e/fixtures/.config.generated.json`）を自動生成する
+- ユニットテストは `config.json` 不要。E2E は `e2e/fixtures/source/` を指す一時 config（`e2e/fixtures/.config.generated.json`）を自動生成する
 - 姉妹プロジェクト `wiki-viewer/`（Eleventy 静的ビルド方式）とは独立。コードも設定も共有しない
 
 ## 開発規約

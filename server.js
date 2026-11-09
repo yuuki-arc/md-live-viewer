@@ -25,10 +25,11 @@ import { createGenerator } from './lib/rich-generator.js';
 import { richPathToUrl, decorateRichHtml, RICH_CSP } from './lib/rich-page.js';
 import { loadThemes } from './lib/rich-theme.js';
 import { resolveAsset, mimeOf } from './lib/asset.js';
+import { readSources } from './lib/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
-// 既定は ROOT/config.json。E2E など別 vault を注入したい場合のみ
+// 既定は ROOT/config.json。E2E など別のソースを注入したい場合のみ
 // MLV_CONFIG で差し替える。
 const CONFIG_PATH = process.env.MLV_CONFIG
   ? path.resolve(process.env.MLV_CONFIG)
@@ -56,7 +57,7 @@ function loadConfig() {
     console.warn(`[md-live-viewer] config at ${CONFIG_PATH}${CONFIG_SOURCE} is not valid JSON: ${err.message}`);
     return false;
   }
-  state.vaults = Array.isArray(cfg.vaults) ? cfg.vaults : [];
+  state.sources = readSources(cfg);
   state.excludedDirs = new Set(
     Array.isArray(cfg.excludedDirs) ? cfg.excludedDirs : ['.git']
   );
@@ -64,13 +65,13 @@ function loadConfig() {
     Array.isArray(cfg.excludedFiles) ? cfg.excludedFiles : []
   );
   loadRich(cfg.rich);
-  if (state.vaults.length === 0) {
-    console.warn('[md-live-viewer] config.json has no vaults');
+  if (state.sources.length === 0) {
+    console.warn('[md-live-viewer] config.json has no sources');
     return false;
   }
-  const current = state.vaults.find((v) => v.slug === cfg.current) || state.vaults[0];
+  const current = state.sources.find((v) => v.slug === cfg.current) || state.sources[0];
   state.currentSlug = current.slug;
-  state.currentVault = current.path;
+  state.currentSource = current.path;
   return true;
 }
 
@@ -158,12 +159,12 @@ npm run dev   # サーバを再起動</code></pre>
 <h2><code>config.json</code> の最小例</h2>
 <pre><code>{
   "current": "notes",
-  "vaults": [
+  "sources": [
     { "slug": "notes", "label": "Notes", "path": "/絶対/パス/markdown/dir" }
   ]
 }</code></pre>
 
-<p class="subtle">複数のディレクトリを <code>vaults</code> に並べると、footer の Source select で切り替えられるようになります。</p>`;
+<p class="subtle">複数のディレクトリを <code>sources</code> に並べると、footer の Source select で切り替えられるようになります。</p>`;
 }
 
 // c.req.path は decodeURI 相当で、%26(&) %23(#) %25(%) などを復元しない。
@@ -189,11 +190,11 @@ app.use('*', async (c, next) => {
 app.use('/assets/*', serveStatic({ root: ROOT }));
 
 app.get('/_attachments/*', async (c) => {
-  if (!state.currentVault) return c.notFound();
+  if (!state.currentSource) return c.notFound();
   const reqPath = requestPath(c);
   if (reqPath === null) return c.notFound();
   const rel = reqPath.replace(/^\/_attachments\//, '');
-  const attachmentsRoot = path.resolve(state.currentVault, '_attachments');
+  const attachmentsRoot = path.resolve(state.currentSource, '_attachments');
   const filePath = path.resolve(attachmentsRoot, rel);
   if (!filePath.startsWith(attachmentsRoot + path.sep) && filePath !== attachmentsRoot) {
     return c.notFound();
@@ -266,7 +267,7 @@ app.post('/api/rich/generate', async (c) => {
   if (!entry) return c.json({ error: 'not found' }, 404);
   if (!rich.store) return c.json({ error: rich.error }, 503);
 
-  // 実行時点の vault を固定する。生成中に vault が切り替わっても元の vault のキャッシュに書く
+  // 実行時点のソースを固定する。生成中にソースが切り替わっても元のソースのキャッシュに書く
   const slug = state.currentSlug;
   const { store, generator } = rich;
   richJobs.request(richKey(url), async () => {
@@ -287,10 +288,10 @@ app.post('/api/rich/generate', async (c) => {
   return c.json(richStatus(url, entry), 202);
 });
 
-app.get('/api/vaults', (c) => {
+app.get('/api/sources', (c) => {
   return c.json({
     current: state.currentSlug,
-    vaults: state.vaults.map((v) => ({ slug: v.slug, label: v.label, path: v.path })),
+    sources: state.sources.map((v) => ({ slug: v.slug, label: v.label, path: v.path })),
   });
 });
 
@@ -313,19 +314,19 @@ app.post('/api/switch', async (c) => {
     return c.json({ ok: false, error: 'invalid json' }, 400);
   }
   const slug = body?.slug;
-  const vault = state.vaults.find((v) => v.slug === slug);
-  if (!vault) return c.json({ ok: false, error: 'unknown slug' }, 400);
+  const source = state.sources.find((v) => v.slug === slug);
+  if (!source) return c.json({ ok: false, error: 'unknown slug' }, 400);
   try {
-    // 切替が重なると、片方の watcher が停止されずに残ったり、別 vault の
+    // 切替が重なると、片方の watcher が停止されずに残ったり、別ソースの
     // ファイルが index に混ざったりするため直列化する
     await switchQueue(async () => {
       await indexer.stop();
       resetState();
-      state.currentSlug = vault.slug;
-      await indexer.load(vault.path);
+      state.currentSlug = source.slug;
+      await indexer.load(source.path);
     });
     broadcast('reload', { scope: 'all' });
-    return c.json({ ok: true, slug: vault.slug });
+    return c.json({ ok: true, slug: source.slug });
   } catch (err) {
     return c.json({ ok: false, error: String(err) }, 500);
   }
@@ -373,7 +374,7 @@ app.get('/api/live', (c) => {
 });
 
 app.get('/', (c) => {
-  if (!state.currentVault) {
+  if (!state.currentSource) {
     const html = wrap({
       title: 'Welcome',
       content: renderWelcomeBody(),
@@ -395,7 +396,7 @@ app.get('*', (c) => {
   const reqPath = requestPath(c);
   if (reqPath === null) return c.notFound();
   // Markdown の隣に置かれた画像など（ページ内の相対リンク・<img> が指す先）
-  const asset = state.currentVault && resolveAsset(state.currentVault, reqPath, state);
+  const asset = state.currentSource && resolveAsset(state.currentSource, reqPath, state);
   if (asset) {
     try {
       return c.body(readFileSync(asset), 200, { 'Content-Type': mimeOf(asset) });
@@ -431,14 +432,14 @@ app.notFound((c) => c.text('Not Found', 404));
 (async () => {
   const hasConfig = loadConfig();
   if (hasConfig) {
-    console.log(`[md-live-viewer] loading source: ${state.currentVault}`);
+    console.log(`[md-live-viewer] loading source: ${state.currentSource}`);
     const t0 = Date.now();
     try {
-      await indexer.load(state.currentVault);
+      await indexer.load(state.currentSource);
       console.log(`[md-live-viewer] indexed ${state.index.size} pages in ${Date.now() - t0}ms`);
     } catch (err) {
       console.warn(`[md-live-viewer] failed to index source: ${err?.message ?? err}`);
-      state.currentVault = null;
+      state.currentSource = null;
       state.currentSlug = null;
     }
   } else {

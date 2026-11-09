@@ -60,7 +60,7 @@ test('メタ情報は HTML 末尾の JSON に埋め込み、読み出し時は�
   });
 });
 
-test('vault（slug）が違えば同じページ URL でも別のキャッシュになる', () => {
+test('ソース（slug）が違えば同じページ URL でも別のキャッシュになる', () => {
   withStore((store) => {
     store.write('notes', '/a/', { html: 'notes', meta: META });
     store.write('work', '/a/', { html: 'work', meta: META });

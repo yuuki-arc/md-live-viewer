@@ -30,12 +30,12 @@ npm run dev
 
 ## ソースの追加
 
-`config.json` を編集して `vaults` 配列にエントリを追加後、サーバを再起動:
+`config.json` を編集して `sources` 配列にエントリを追加後、サーバを再起動（キー名は `vaults` でもよい。両方あれば `sources` を優先）:
 
 ```json
 {
   "current": "notes",
-  "vaults": [
+  "sources": [
     { "slug": "notes",      "label": "Notes",      "path": "/絶対/パス/markdown/dir" },
     { "slug": "work-notes", "label": "Work notes", "path": "/絶対/パス/work" }
   ]
@@ -50,7 +50,7 @@ npm run dev
 
 - **生成は手動**: Rich 表示で「生成する」を押したページだけ生成する。Markdown を編集すると「元の Markdown が更新されています」と出るので、必要なら「再生成」する（保存のたびに自動生成はしない）
 - **API キー・従量課金なし**: 既定ではローカルの `claude` CLI（`claude -p`）を子プロセスで呼び、ログイン中の Claude サブスクリプションの利用枠で生成する。`ANTHROPIC_API_KEY` は子プロセスに渡さない。ツールなし・ユーザー設定 / MCP なしで実行するため、ファイル操作やコマンド実行はさせない
-- **キャッシュ**: 生成物は md-live-viewer 側の `.cache/rich/`（git 管理外）に置き、vault には書き込まない。`.cache/rich/<vault の slug>/<ページのパス>/index.html` に置くので、ファイルをブラウザで直接開ける（メタ情報は末尾の `<script type="application/json" id="mlv-meta">` に埋め込む）
+- **キャッシュ**: 生成物は md-live-viewer 側の `.cache/rich/`（git 管理外）に置き、ソースには書き込まない。`.cache/rich/<ソースの slug>/<ページのパス>/index.html` に置くので、ファイルをブラウザで直接開ける（メタ情報は末尾の `<script type="application/json" id="mlv-meta">` に埋め込む）
 - **配色**: 生成物には色を `--mlv-bg` / `--mlv-accent` などの CSS 変数だけで書かせる。Rich 表示ではビューアのテーマの色で上書きし、テーマを切り替えると追従する。ファイルを直接開いたときは、生成物が自分で決めた配色（OS のダークモードにも追従）で表示される。この仕組みより前に生成したページは、再生成するとテーマに追従する
 - **隔離**: 生成 HTML は `sandbox`（`allow-same-origin` なし）の iframe と CSP で表示し、ビューアの API・外部リソースの読み込み・通信・フォーム送信を禁じる。外部リソースを読まない自己完結 HTML を生成させる。ただし元の Markdown の外部リンクを開けるよう、クリックで新しいタブを開くことは許している（生成物は LLM の出力なので、怪しいリンクは開かない）
 - 生成は 1 件ずつ順番に実行する。1 ページあたり数十秒〜数分かかる
@@ -81,7 +81,7 @@ npm run dev
 Browser ──HTTP/SSE──> Hono (server.js, :7777)
                         │
                         ├─ state (in-memory: index, tree, LRU, SSE clients)
-                        ├─ indexer ── chokidar ── vault filesystem
+                        ├─ indexer ── chokidar ── source filesystem
                         ├─ render  ── markdown-it + wikilinks + callouts + mermaid fence + gray-matter
                         ├─ tree    ── lazy subtree API
                         ├─ search  ── MiniSearch (fuzzy + prefix)
@@ -95,7 +95,7 @@ Browser ──HTTP/SSE──> Hono (server.js, :7777)
 - **ファイル変更**: chokidar → index 更新 → LRU invalidate → SSE `reload`
 - **SSE の接続数**: ブラウザは同じホストへの接続を 6 本までに制限するので、表示中のタブだけが SSE を張る。裏に回ったタブや bfcache に入ったページは閉じ、表に戻るとつなぎ直す。イベントには id を付けてサーバが直近 200 件を覚えており、つなぎ直すときに `?since=<最後に受け取った id>` で閉じている間の分を送り直す。ページの HTML にも返した時点の id（`<meta name="mlv-live-id">`）を埋め込み、最初の接続から渡すので、HTML を返してから SSE がつながるまでの変更や、裏で開いて表示する前の変更も取りこぼさない。覚えている範囲より古い場合やサーバ再起動をまたいだ場合は、全ページを読み込み直させる
 - **Rich 表示**: `POST /api/rich/generate` → 生成ジョブ（1 件ずつ）→ キャッシュに保存 → SSE `rich` → `GET /_rich/:path/` を sandbox iframe で表示
-- **vault 切替**: `POST /api/switch {slug}` → watcher stop → state reset → 新 vault walk → SSE `reload` ブロードキャスト
+- **ソース切替**: `POST /api/switch {slug}` → watcher stop → state reset → 新ソース walk → SSE `reload` ブロードキャスト
 
 ## ディレクトリ構成
 
@@ -119,7 +119,7 @@ md-live-viewer/
 │   ├── rich-jobs.js        # 生成ジョブの状態管理と直列実行
 │   ├── rich-page.js        # /_rich/ の URL 変換・CSP・高さ通知スクリプト
 │   ├── rich-theme.js       # テーマ CSS の色を生成物の --mlv-* 変数に読み替える
-│   └── serial.js           # 非同期処理の直列化（vault 切替用）
+│   └── serial.js           # 非同期処理の直列化（ソース切替用）
 ├── _includes/
 │   └── base.html           # HTML テンプレート
 ├── assets/
@@ -132,13 +132,13 @@ md-live-viewer/
 │       ├── toc.js          # 目次
 │       ├── slug.js         # 見出し ID の生成（toc.js と wikilink で共有）
 │       ├── menu-toggle.js  # モバイルのサイドバー開閉
-│       ├── vault.js        # Source 切替
+│       ├── source.js       # Source 切替
 │       ├── rich-view.js    # Markdown / Rich の表示切替と生成操作
 │       └── mermaid-init.js # Mermaid 図の描画
 ├── test/                   # ユニットテスト（node --test）
-├── e2e/                    # Playwright E2E（fixtures/vault/ がテスト用 vault）
+├── e2e/                    # Playwright E2E（fixtures/source/ がテスト用ソース）
 ├── config.example.json     # config.json のテンプレート
-├── config.json             # vault 一覧（.gitignore 対象）
+├── config.json             # ソース一覧（.gitignore 対象）
 ├── playwright.config.js
 └── package.json
 ```
@@ -150,14 +150,14 @@ md-live-viewer/
 ```json
 {
   "current": "...",
-  "vaults": [...],
+  "sources": [...],
   "excludedDirs": [".git"],
   "excludedFiles": []
 }
 ```
 
 - `excludedDirs`: ソース直下に該当名のディレクトリがあれば、その配下を一切インデックスしない（basename 一致）
-- `excludedFiles`: ソース直下のファイル名（`<vault>/CLAUDE.md` 等）を除外。subdir 配下は対象外
+- `excludedFiles`: ソース直下のファイル名（`<ソース>/CLAUDE.md` 等）を除外。subdir 配下は対象外
 
 未指定なら `excludedDirs: [".git"]`、`excludedFiles: []` が適用される。
 
@@ -165,18 +165,18 @@ md-live-viewer/
 
 | メソッド | パス | 用途 |
 |---|---|---|
-| GET | `/` | currentVault のトップリスト |
+| GET | `/` | currentSource のトップリスト |
 | GET | `/:path/` | Markdown ページレンダリング |
 | GET | `/:path.<ext>` | Markdown の隣に置かれた画像・PDF・音声・動画（png / jpg / gif / svg / webp / pdf / mp4 / mov / mp3 / wav）。ページ内の相対リンク・`![]()` はこの URL を指すよう書き換える |
 | GET | `/assets/**` | CSS/JS 静的配信 |
-| GET | `/_attachments/**` | currentVault の添付ファイル |
+| GET | `/_attachments/**` | currentSource の添付ファイル |
 | GET | `/_raw/:path/` | 生 Markdown を `text/plain` で返す（レンダリング・JS なし） |
 | GET | `/_rich/:path/?theme=` | 生成済みのリッチ HTML（sandbox CSP 付き）。`theme` を付けるとそのテーマの色で表示する。未生成なら 404 |
 | GET | `/api/rich?path=` | Rich 表示の状態（生成済みか・古いか・ジョブの状態） |
 | POST | `/api/rich/generate` | body `{path}` で生成を依頼（202） |
 | GET | `/api/tree?path=` | サブツリー JSON |
 | GET | `/api/search?q=&sort=` | ファイル名・パスの fuzzy / prefix 検索 (MiniSearch)。`sort=score`（既定・関連度順、同点はパス順）/ `sort=path`（関連度上位 50 件をパス順） |
-| GET | `/api/vaults` | 設定済み vault 一覧 |
+| GET | `/api/sources` | 設定済みソース一覧 |
 | POST | `/api/switch` | body `{slug}` で切替 |
 | GET | `/api/live?since=` | SSE、`hello`（接続時の位置）/ `reload` / `rich` イベント受信。`since` を付けると、その id より後のイベントを送り直す |
 
@@ -188,7 +188,7 @@ md-live-viewer/
 npm test
 ```
 
-E2E は Playwright（`@playwright/test`、dev 依存）。`e2e/fixtures/vault/` を指す一時 config を生成してサーバを起動し、ヘッドレス Chromium でサイドバーの祖先自動展開などを検証する。Rich 表示の生成器は `e2e/fixtures/fake-generator.js` に差し替えるため、E2E で claude CLI は呼ばない。`e2e/bfcache.spec.js` だけは、同梱の Chromium が back-forward cache を使わないため、インストール済みの Google Chrome（`channel: 'chrome'`）で bfcache を有効にして実行する。
+E2E は Playwright（`@playwright/test`、dev 依存）。`e2e/fixtures/source/` を指す一時 config を生成してサーバを起動し、ヘッドレス Chromium でサイドバーの祖先自動展開などを検証する。Rich 表示の生成器は `e2e/fixtures/fake-generator.js` に差し替えるため、E2E で claude CLI は呼ばない。`e2e/bfcache.spec.js` だけは、同梱の Chromium が back-forward cache を使わないため、インストール済みの Google Chrome（`channel: 'chrome'`）で bfcache を有効にして実行する。
 
 ```bash
 npx playwright install chromium   # 初回のみ
@@ -205,7 +205,7 @@ E2E 実行中はポート 7778 を占有する（`playwright.config.js`）。
 2. **全文検索** — 現在の検索はファイル名・パスのみ（`lib/search.js`）。MiniSearch に本文フィールドを足して全文検索化する（本命）
 3. **リンク索引 → dead wikilink ハイライト ＋ バックリンク** — 全ファイルの `[[wikilink]]` を抽出した逆引きマップを 1 つ用意し、リンク切れ検出とバックリンク表示を同じ基盤で実現する
 4. 後回し / 凍結
-   - UI から任意パスの vault 追加フォーム（設定は初回のみで発生頻度が低い）
+   - UI から任意パスのソース追加フォーム（設定は初回のみで発生頻度が低い）
    - @parcel/watcher に差替（10k+ 規模の起動高速化のみで体感差が小さい）
    - グラフビュー（全ノード展開が前提で「全件を広げない」lazy 設計と衝突するため凍結）
 
@@ -225,7 +225,7 @@ footer の Theme select で切替、localStorage キー `md-live-viewer-theme` �
 
 デフォルト 7777。`PORT` 環境変数で上書き可能。
 
-既定では `127.0.0.1`（このマシン）からのみアクセスできる。vault の内容や絶対パスを返すため、
+既定では `127.0.0.1`（このマシン）からのみアクセスできる。ソースの内容や絶対パスを返すため、
 LAN 内の別端末（スマホ等）から見たい場合だけ `MLV_HOST` で待受アドレスを明示する
 （汎用の `HOST` はシェルがホスト名を入れていることがあるため読まない）。
 
@@ -236,7 +236,7 @@ MLV_HOST=0.0.0.0 npm run dev   # LAN に公開する（信頼できるネット�
 
 ループバック待受時は `Host` ヘッダが `localhost` / `127.0.0.1` / `[::1]` 以外のリクエストを 403 にする
 （DNS リバインディング対策）。また `Origin` ヘッダ付きのリクエストは同一オリジンのみ受け付ける
-（他サイトからの vault 切替などの CSRF 対策）。
+（他サイトからのソース切替などの CSRF 対策）。
 
 ## 依存
 

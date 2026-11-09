@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { encodePath } from '../assets/js/url-path.js';
 
-const VAULT = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'vault');
+const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'source');
 
 // ファイル名に URL の予約文字や非 ASCII を含むページ
 const PAGES = [
@@ -26,7 +26,7 @@ for (const { name, title } of PAGES) {
     const href = await page.locator('a.raw-link').getAttribute('href');
     const res = await request.get(href);
     expect(res.status()).toBe(200);
-    expect(await res.text()).toBe(readFileSync(join(VAULT, 'special', `${name}.md`), 'utf8'));
+    expect(await res.text()).toBe(readFileSync(join(FIXTURE_DIR, 'special', `${name}.md`), 'utf8'));
   });
 }
 
@@ -67,7 +67,7 @@ test('wikilink をクリックすると正規形の URL でページを開ける
 test('予約文字を含む名前の添付ファイルを取得できる', async ({ request }) => {
   const res = await request.get(encodePath('/_attachments/Q&A #1.txt'));
   expect(res.status()).toBe(200);
-  expect(await res.text()).toBe(readFileSync(join(VAULT, '_attachments', 'Q&A #1.txt'), 'utf8'));
+  expect(await res.text()).toBe(readFileSync(join(FIXTURE_DIR, '_attachments', 'Q&A #1.txt'), 'utf8'));
 });
 
 test('見出し付き wikilink は見出しの位置までスクロールする', async ({ page }) => {

@@ -1,6 +1,6 @@
 (function () {
   var KEY = 'md-live-viewer-source';
-  var sel = document.getElementById('vault-select');
+  var sel = document.getElementById('source-select');
   if (!sel) return;
 
   async function switchTo(slug) {
@@ -14,12 +14,12 @@
 
   async function init() {
     try {
-      var r = await fetch('/api/vaults');
+      var r = await fetch('/api/sources');
       var data = await r.json();
-      var vaults = data.vaults || [];
+      var sources = data.sources || [];
 
       sel.innerHTML = '';
-      vaults.forEach(function (v) {
+      sources.forEach(function (v) {
         var opt = document.createElement('option');
         opt.value = v.slug;
         opt.textContent = v.label;
@@ -27,7 +27,7 @@
       });
 
       var stored = localStorage.getItem(KEY);
-      var storedValid = stored && vaults.some(function (v) { return v.slug === stored; });
+      var storedValid = stored && sources.some(function (v) { return v.slug === stored; });
 
       if (storedValid && stored !== data.current) {
         sel.disabled = true;

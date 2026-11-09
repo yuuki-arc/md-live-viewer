@@ -27,7 +27,7 @@ function saveOpenSet(set) {
 }
 
 // 検索文字列。同じ検索結果から次々にページを開けるよう、ページを移動しても残す。
-// タブごとに別の検索をしたいので sessionStorage に置き、vault ごとに分ける
+// タブごとに別の検索をしたいので sessionStorage に置き、ソースごとに分ける
 const SEARCH_KEY = 'md-live-viewer-search:' + SLUG;
 
 function loadQuery() {
@@ -44,7 +44,7 @@ function saveQuery(q) {
   } catch (_) {}
 }
 
-// 検索結果の並び順（score: 関連度順 / path: パス順）。好みの問題なので vault やタブで分けず、
+// 検索結果の並び順（score: 関連度順 / path: パス順）。好みの問題なのでソースやタブで分けず、
 // 選んだものを次からの既定にする
 const SORT_KEY = 'md-live-viewer-search-sort';
 const SORTS = ['score', 'path'];

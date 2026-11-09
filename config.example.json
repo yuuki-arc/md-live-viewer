@@ -1,6 +1,6 @@
 {
   "current": "my-notes",
-  "vaults": [
+  "sources": [
     {
       "slug": "my-notes",
       "label": "My notes",

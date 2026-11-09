@@ -39,7 +39,7 @@ build/
 /playwright/.cache/
 e2e/fixtures/.config.generated.json
 # E2E がテスト中に作る一時ファイル
-e2e/fixtures/vault/**/_tmp-*
+e2e/fixtures/source/**/_tmp-*
 
 # Rich 表示の生成キャッシュ（rich.cacheDir の既定値と E2E 用）
 .cache/
