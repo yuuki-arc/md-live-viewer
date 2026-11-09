@@ -9,7 +9,6 @@ test('sources を読む', () => {
   assert.deepEqual(readSources({ sources: [A] }), [A]);
 });
 
-// Obsidian の vault を並べるなら vaults と書くのが自然なので、正式な別名として受け付ける
 test('別名 vaults も同じように読む', () => {
   assert.deepEqual(readSources({ vaults: [A] }), [A]);
 });
