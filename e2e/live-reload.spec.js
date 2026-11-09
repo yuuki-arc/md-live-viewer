@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 // 作るファイルは _tmp- で始め .gitignore 済み。中断しても追跡ファイルを汚さない
 test.describe.configure({ mode: 'serial' });
 
-const DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'vault', 'special');
+const DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'source', 'special');
 
 // サーバは SSE クライアント登録後に最初の書き込みを行うため、レスポンス受信 = 登録済み。
 // これを待たずにファイルを書き換えると reload イベントを取りこぼす

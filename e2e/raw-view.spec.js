@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const VAULT = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'vault');
+const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'source');
 
 test('/_raw/ はファイルの中身を text/plain でそのまま返す', async ({ request }) => {
   const res = await request.get('/_raw/a/b/c/');
@@ -11,14 +11,14 @@ test('/_raw/ はファイルの中身を text/plain でそのまま返す', asyn
   expect(res.status()).toBe(200);
   expect(res.headers()['content-type']).toContain('text/plain');
   expect(res.headers()['x-content-type-options']).toBe('nosniff');
-  expect(await res.text()).toBe(readFileSync(join(VAULT, 'a', 'b', 'c.md'), 'utf8'));
+  expect(await res.text()).toBe(readFileSync(join(FIXTURE_DIR, 'a', 'b', 'c.md'), 'utf8'));
 });
 
 test('末尾スラッシュが無い /_raw/ パスも同じ内容を返す', async ({ request }) => {
   const res = await request.get('/_raw/top');
 
   expect(res.status()).toBe(200);
-  expect(await res.text()).toBe(readFileSync(join(VAULT, 'top.md'), 'utf8'));
+  expect(await res.text()).toBe(readFileSync(join(FIXTURE_DIR, 'top.md'), 'utf8'));
 });
 
 test('index に無いパスは 404', async ({ request }) => {

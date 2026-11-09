@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { writeFileSync, rmSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const VAULT = join(__dirname, 'e2e', 'fixtures', 'vault');
+const FIXTURE_DIR = join(__dirname, 'e2e', 'fixtures', 'source');
 const GENERATED_CONFIG = join(__dirname, 'e2e', 'fixtures', '.config.generated.json');
 const RICH_CACHE = join(__dirname, 'e2e', 'fixtures', '.rich-cache');
 const PORT = 7778;
@@ -12,14 +12,14 @@ const PORT = 7778;
 // 前回の生成物が残っていると「未生成」の状態から検証できないため毎回消す
 rmSync(RICH_CACHE, { recursive: true, force: true });
 
-// vault の絶対パスはマシン依存なので、フィクスチャ vault を指す config を
+// ソースの絶対パスはマシン依存なので、フィクスチャのソースを指す config を
 // テスト実行のたびに生成し、MLV_CONFIG でサーバに注入する。
 writeFileSync(
   GENERATED_CONFIG,
   JSON.stringify(
     {
       current: 'fixture',
-      vaults: [{ slug: 'fixture', label: 'Fixture', path: VAULT }],
+      sources: [{ slug: 'fixture', label: 'Fixture', path: FIXTURE_DIR }],
       excludedDirs: ['.git'],
       excludedFiles: [],
       // claude CLI を呼ばないよう、固定の HTML を返す偽の生成器に差し替える
@@ -43,7 +43,7 @@ export default defineConfig({
   use: { baseURL: `http://127.0.0.1:${PORT}` },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /live-reload\.spec\.js/ },
-    // vault のファイルを追加・削除して全ページをリロードさせるため、他の E2E の後に実行する
+    // ソースのファイルを追加・削除して全ページをリロードさせるため、他の E2E の後に実行する
     {
       name: 'live',
       use: { ...devices['Desktop Chrome'] },
