@@ -167,6 +167,7 @@ md-live-viewer/
 |---|---|---|
 | GET | `/` | currentVault のトップリスト |
 | GET | `/:path/` | Markdown ページレンダリング |
+| GET | `/:path.<ext>` | Markdown の隣に置かれた画像・PDF・音声・動画（png / jpg / gif / svg / webp / pdf / mp4 / mov / mp3 / wav）。ページ内の相対リンク・`![]()` はこの URL を指すよう書き換える |
 | GET | `/assets/**` | CSS/JS 静的配信 |
 | GET | `/_attachments/**` | currentVault の添付ファイル |
 | GET | `/_raw/:path/` | 生 Markdown を `text/plain` で返す（レンダリング・JS なし） |

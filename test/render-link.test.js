@@ -44,18 +44,51 @@ test('ルート絶対パスの .md は .md を落として末尾 / にする（�
   assert.equal(hrefOf('[a](/dir/page.md)'), '/dir/page/');
 });
 
+// .md 以外の相対リンク（画像・PDF・ディレクトリなど）も基準だけ 1 階層上に合わせる
+for (const [src, href] of [
+  ['[a](image.png)', '../image.png'],
+  ['[a](./image.png)', '.././image.png'],
+  ['[a](sub/image.png)', '../sub/image.png'],
+  ['[a](../up.png)', '../../up.png'],
+  ['[a](dir/)', '../dir/'],
+  ['[a](notes.markdown)', '../notes.markdown'],
+  ['[a](図.png#x)', '../%E5%9B%B3.png#x'],
+]) {
+  test(`相対リンク ${src} はファイル基準の ${href} を指す`, () => {
+    assert.equal(hrefOf(src), href);
+  });
+}
+
 for (const src of [
   '[a](https://example.com/README.md)',
   '[a](//example.com/x.md)',
   '[a](mailto:x@example.com)',
   '[a](#heading)',
-  '[a](image.png)',
-  '[a](dir/)',
-  '[a](notes.markdown)',
+  '[a](?q=1)',
+  '[a](/_attachments/image.png)',
 ]) {
   test(`${src} は書き換えない`, () => {
     const expected = src.match(/\]\((.*)\)$/)[1];
     assert.equal(hrefOf(src), expected);
+  });
+}
+
+function srcOf(src) {
+  const m = renderMd(src + '\n').match(/<img src="([^"]*)"/);
+  assert.ok(m, `${src} が画像として出力される`);
+  return m[1];
+}
+
+for (const [src, expected] of [
+  ['![x](image.png)', '../image.png'],
+  ['![x](sub/image.svg)', '../sub/image.svg'],
+  ['![x](../up.png)', '../../up.png'],
+  ['![x](/_attachments/a.png)', '/_attachments/a.png'],
+  ['![x](https://example.com/a.png)', 'https://example.com/a.png'],
+  ['![x](data:image/png;base64,AAAA)', 'data:image/png;base64,AAAA'],
+]) {
+  test(`画像 ${src} の src は ${expected}`, () => {
+    assert.equal(srcOf(src), expected);
   });
 }
 

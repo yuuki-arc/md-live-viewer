@@ -24,6 +24,7 @@ import { createRichJobs } from './lib/rich-jobs.js';
 import { createGenerator } from './lib/rich-generator.js';
 import { richPathToUrl, decorateRichHtml, RICH_CSP } from './lib/rich-page.js';
 import { loadThemes } from './lib/rich-theme.js';
+import { resolveAsset, mimeOf } from './lib/asset.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -36,13 +37,6 @@ const CONFIG_PATH = process.env.MLV_CONFIG
 const CONFIG_SOURCE = process.env.MLV_CONFIG ? ' (from MLV_CONFIG)' : '';
 const PORT = Number(process.env.PORT) || 7777;
 const HOST = resolveBindHost(process.env);
-
-const MIME = {
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif', '.svg': 'image/svg+xml', '.webp': 'image/webp',
-  '.pdf': 'application/pdf', '.mp4': 'video/mp4', '.mov': 'video/quicktime',
-  '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
-};
 
 function loadConfig() {
   let raw;
@@ -208,7 +202,7 @@ app.get('/_attachments/*', async (c) => {
     const st = statSync(filePath);
     if (!st.isFile()) return c.notFound();
     const buf = readFileSync(filePath);
-    const mime = MIME[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+    const mime = mimeOf(filePath) || 'application/octet-stream';
     return c.body(buf, 200, { 'Content-Type': mime });
   } catch {
     return c.notFound();
@@ -400,9 +394,24 @@ app.get('/', (c) => {
 app.get('*', (c) => {
   const reqPath = requestPath(c);
   if (reqPath === null) return c.notFound();
+  // Markdown の隣に置かれた画像など（ページ内の相対リンク・<img> が指す先）
+  const asset = state.currentVault && resolveAsset(state.currentVault, reqPath, state);
+  if (asset) {
+    try {
+      return c.body(readFileSync(asset), 200, { 'Content-Type': mimeOf(asset) });
+    } catch {
+      return c.notFound();
+    }
+  }
   const url = reqPath.endsWith('/') ? reqPath : reqPath + '/';
   const entry = state.index.get(url);
   if (!entry) return c.notFound();
+  // ページ内の相対参照は末尾 / のページ URL を基準に書き換えている（lib/render.js）。
+  // / なしで開くと基準が 1 階層ずれるので、正規形へリダイレクトする
+  if (!reqPath.endsWith('/')) {
+    const u = new URL(c.req.url);
+    return c.redirect(u.pathname + '/' + u.search, 301);
+  }
   const rendered = render(entry.filePath);
   if (!rendered) return c.notFound();
   const { html, title } = rendered;
